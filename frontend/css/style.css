@@ -359,3 +359,108 @@ button { font-family: inherit; cursor: pointer; }
   .sidebar.open { left: 0; }
   .navbar-search { display: none; }
 }
+
+/* ---------- Two-column layout (profile / student finder pages) ---------- */
+.layout-2col { grid-template-columns: 240px 1fr; }
+
+/* ---------- Profile page ---------- */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.profile-header-info { flex: 1; min-width: 200px; }
+
+.profile-name { font-size: 20px; font-weight: 700; }
+
+.profile-subtext { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+.profile-meta-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.empty-state {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+/* ---------- Forms ---------- */
+.form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+
+.form-label { font-size: 13px; font-weight: 600; color: var(--text); }
+
+.form-hint { font-size: 12px; color: var(--text-muted); }
+
+.form-input,
+.form-textarea {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  width: 100%;
+}
+
+.form-input:focus,
+.form-textarea:focus { border-color: var(--primary); background: #fff; }
+
+.form-textarea { resize: vertical; min-height: 90px; }
+
+.form-actions { display: flex; gap: 10px; margin-top: 4px; }
+
+.form-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+/* ---------- Tags ---------- */
+.tag-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.tag {
+  background: rgba(74, 108, 247, 0.1);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+
+/* ---------- Student search ---------- */
+.search-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.search-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.student-card { display: flex; flex-direction: column; gap: 10px; }
+
+.student-card-top { display: flex; align-items: center; gap: 12px; }
+
+.results-count { font-size: 13px; color: var(--text-muted); margin: -4px 0 4px; }
