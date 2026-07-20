@@ -1,0 +1,17 @@
+{
+  "name": "rpconnect",
+  "version": "1.0.0",
+  "description": "RPConnect - Student community platform (no database, hardcoded data)",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ejs": "^3.1.10"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
