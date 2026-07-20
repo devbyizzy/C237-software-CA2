@@ -1,0 +1,18 @@
+{
+  "name": "rpconnect-backend",
+  "version": "1.0.0",
+  "description": "RPConnect - Backend REST API (no database, hardcoded data)",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "start": "^5.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
