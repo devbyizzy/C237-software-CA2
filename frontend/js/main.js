@@ -78,8 +78,9 @@ async function loadDashboard() {
     if (feed) {
       feed.insertAdjacentHTML(
         'afterbegin',
-        `<div class="card" style="border-color:#e11d48"><p class="card-content">Couldn't reach the backend API at ${window.API_BASE_URL}. Make sure the backend server is running.</p></div>`
+        `<div class="card" style="border-color: rgba(251, 191, 36, 0.35)"><p class="card-content">Couldn't reach the backend API at ${window.API_BASE_URL}. Make sure the backend server is running.</p></div>`
       );
+
     }
   }
 }
