@@ -1,0 +1,28 @@
+<aside class="sidebar" id="sidebar">
+  <nav class="sidebar-nav">
+    <a href="/dashboard" class="sidebar-link <%= activePage === 'home' ? 'active' : '' %>">
+      <span class="sidebar-icon">🏠</span> Home
+    </a>
+    <a href="/questions" class="sidebar-link <%= activePage === 'questions' ? 'active' : '' %>">
+      <span class="sidebar-icon">❓</span> Questions
+    </a>
+    <a href="/groups" class="sidebar-link <%= activePage === 'groups' ? 'active' : '' %>">
+      <span class="sidebar-icon">👥</span> Groups
+    </a>
+    <a href="/ccas" class="sidebar-link <%= activePage === 'ccas' ? 'active' : '' %>">
+      <span class="sidebar-icon">🎭</span> CCAs
+    </a>
+    <a href="/timetables" class="sidebar-link <%= activePage === 'timetables' ? 'active' : '' %>">
+      <span class="sidebar-icon">🗓️</span> Timetables
+    </a>
+    <a href="/students" class="sidebar-link <%= activePage === 'students' ? 'active' : '' %>">
+      <span class="sidebar-icon">🔎</span> Student Finder
+    </a>
+    <a href="/groups/mine" class="sidebar-link <%= activePage === 'myGroups' ? 'active' : '' %>">
+      <span class="sidebar-icon">📌</span> My Groups
+    </a>
+    <a href="/profile" class="sidebar-link <%= activePage === 'profile' ? 'active' : '' %>">
+      <span class="sidebar-icon">🙍</span> My Profile
+    </a>
+  </nav>
+</aside>
