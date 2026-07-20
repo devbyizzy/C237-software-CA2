@@ -1,0 +1,2453 @@
+From 63285fcfe9cb60d505811b4384f211b6297d33a9 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 20 Jul 2026 02:45:51 +0000
+Subject: [PATCH] Add Class and Friend Groups feature (schema, routes, EJS
+ views)
+
+- sql/groups_schema.sql: groups, group_members, group_posts, group_replies
+  tables with FKs, ENUMs and demo seed data
+- routes/groups.js: full CRUD - browse/search/filter groups, create, edit,
+  delete, join public / request private, owner accept/reject requests,
+  leave, discussion posts and replies; all session-protected
+- views: groups, createGroup, groupDetails, editGroup + shared partials,
+  temporary dev-login page until Member 1's auth is merged
+- app.js/db.js scaffold with express-session and mysql2 pool
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01JGWdzNMJccFfrTvoZizFKv
+---
+ .gitignore                |    3 +
+ README.md                 |   72 ++-
+ app.js                    |   58 ++
+ db.js                     |   15 +
+ package-lock.json         | 1100 +++++++++++++++++++++++++++++++++++++
+ package.json              |   15 +
+ public/css/style.css      |   91 +++
+ routes/groups.js          |  444 +++++++++++++++
+ sql/groups_schema.sql     |  123 +++++
+ views/createGroup.ejs     |   63 +++
+ views/devLogin.ejs        |   25 +
+ views/editGroup.ejs       |   71 +++
+ views/groupDetails.ejs    |  132 +++++
+ views/groups.ejs          |   63 +++
+ views/partials/footer.ejs |    6 +
+ views/partials/header.ejs |   22 +
+ 16 files changed, 2302 insertions(+), 1 deletion(-)
+ create mode 100644 .gitignore
+ create mode 100644 app.js
+ create mode 100644 db.js
+ create mode 100644 package-lock.json
+ create mode 100644 package.json
+ create mode 100644 public/css/style.css
+ create mode 100644 routes/groups.js
+ create mode 100644 sql/groups_schema.sql
+ create mode 100644 views/createGroup.ejs
+ create mode 100644 views/devLogin.ejs
+ create mode 100644 views/editGroup.ejs
+ create mode 100644 views/groupDetails.ejs
+ create mode 100644 views/groups.ejs
+ create mode 100644 views/partials/footer.ejs
+ create mode 100644 views/partials/header.ejs
+
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..2e8157a
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,3 @@
++node_modules/
++.env
++*.log
+diff --git a/README.md b/README.md
+index 14b4dd6..765c78b 100644
+--- a/README.md
++++ b/README.md
+@@ -1,2 +1,72 @@
+-# C237-software-CA2
++# C237-software-CA2 — RPConnect
++
+ C237 Software Application Development CA2 web application project.
++
++RPConnect is an online community platform for Republic Polytechnic students.
++**This branch implements Member 5's feature: Class and Friend Groups** — students
++can create, browse, search, join and discuss in groups based on their class,
++module, CCA or interests.
++
++## Tech stack
++
++Node.js + Express + EJS + MySQL (`mysql2`), following the C237 application flow:
++
++```
++user action → Express route → SQL query → database response → EJS update
++```
++
++## Setup
++
++1. Install dependencies:
++
++   ```bash
++   npm install
++   ```
++
++2. Create the database, tables and demo data:
++
++   ```bash
++   mysql -u root -p < sql/groups_schema.sql
++   ```
++
++   (Set `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` environment variables if
++   your MySQL credentials differ from `root` / empty password / `rpconnect`.)
++
++3. Start the server:
++
++   ```bash
++   npm start
++   ```
++
++4. Open http://localhost:3000 — you'll be redirected to a temporary dev-login
++   page (pick any demo user). This page is a stand-in until Member 1's real
++   login/OTP feature is merged.
++
++## Groups feature — routes
++
++| Method | Route | Purpose | CRUD |
++|--------|-------|---------|------|
++| GET  | `/groups` | Browse + search groups (keyword, type, diploma filters) | Read |
++| GET  | `/groups/create` | New-group form | — |
++| POST | `/groups/create` | Insert group; creator becomes owner | Create |
++| GET  | `/groups/:id` | Group details, members, join requests, discussion board | Read |
++| GET  | `/groups/:id/edit` | Edit form (owner only) | — |
++| POST | `/groups/:id/edit` | Update group details (owner only) | Update |
++| POST | `/groups/:id/delete` | Delete group + cascade posts/members (owner only) | Delete |
++| POST | `/groups/:id/join` | Join public group instantly / request private group | Create |
++| POST | `/groups/:id/leave` | Leave a group (owner cannot leave) | Delete |
++| POST | `/groups/:id/requests/:userId/accept` | Owner accepts a pending request | Update |
++| POST | `/groups/:id/requests/:userId/reject` | Owner rejects a pending request | Update |
++| POST | `/groups/:id/posts` | Member creates a discussion post | Create |
++| POST | `/group-posts/:postId/replies` | Member replies to a post | Create |
++
++## Database tables (see `sql/groups_schema.sql`)
++
++- `groups` — group details (type, diploma/class/module info, privacy, max members)
++- `group_members` — membership rows with `member_role` (owner/moderator/member)
++  and `join_status` (pending/accepted/rejected) implementing the join-request flow
++- `group_posts` — discussion board posts inside a group
++- `group_replies` — replies under a post
++
++All routes are session-protected: an unauthenticated visitor is redirected to
++`/login` before any group page or action.
+diff --git a/app.js b/app.js
+new file mode 100644
+index 0000000..adb7de0
+--- /dev/null
++++ b/app.js
+@@ -0,0 +1,58 @@
++// app.js - RPConnect entry point (Class and Friend Groups branch).
++// Flow for every feature: user action -> Express route -> SQL query
++// -> database response -> EJS renders the updated page.
++const express = require('express');
++const session = require('express-session');
++const db = require('./db');
++
++const app = express();
++
++// EJS is the template engine: routes pass data to views/*.ejs files.
++app.set('view engine', 'ejs');
++
++// Parse HTML <form> submissions into req.body.
++app.use(express.urlencoded({ extended: false }));
++
++// Serve the stylesheet from /public.
++app.use(express.static('public'));
++
++// Session middleware: after login, req.session.userId identifies the user.
++// (Member 1's real login feature will reuse this same session setup.)
++app.use(session({
++    secret: 'rpconnect-dev-secret',   // move to an env variable in production
++    resave: false,
++    saveUninitialized: false
++}));
++
++// Make the logged-in user's id available to every EJS view as "currentUserId".
++app.use((req, res, next) => {
++    res.locals.currentUserId = req.session.userId || null;
++    next();
++});
++
++// Mount all /groups and /group-posts routes (this branch's feature).
++app.use('/', require('./routes/groups'));
++
++// Home page simply redirects to the groups browser for this branch.
++app.get('/', (req, res) => res.redirect('/groups'));
++
++// ------------------------------------------------------------------
++// TEMPORARY dev login - REMOVE when Member 1's real login is merged.
++// Lets us pick any user from the database so the session-protected
++// group routes can be demonstrated on this branch alone.
++// ------------------------------------------------------------------
++app.get('/login', async (req, res) => {
++    const [users] = await db.query('SELECT user_id, name, diploma FROM users');
++    res.render('devLogin', { users });
++});
++
++app.post('/login', (req, res) => {
++    req.session.userId = Number(req.body.user_id);  // what Member 1's code will also set
++    res.redirect('/groups');
++});
++
++app.get('/logout', (req, res) => {
++    req.session.destroy(() => res.redirect('/login'));
++});
++
++app.listen(3000, () => console.log('RPConnect running on http://localhost:3000'));
+diff --git a/db.js b/db.js
+new file mode 100644
+index 0000000..ca5c469
+--- /dev/null
++++ b/db.js
+@@ -0,0 +1,15 @@
++// db.js - one shared MySQL connection pool for the whole app.
++// Every route file require()s this, runs SQL with pool.query(),
++// and gets the database response back as a JavaScript array.
++const mysql = require('mysql2/promise');
++
++const pool = mysql.createPool({
++    host:     process.env.DB_HOST     || 'localhost',
++    user:     process.env.DB_USER     || 'root',
++    password: process.env.DB_PASSWORD || '',
++    database: process.env.DB_NAME     || 'rpconnect',
++    waitForConnections: true,
++    connectionLimit: 10
++});
++
++module.exports = pool;
+diff --git a/package-lock.json b/package-lock.json
+new file mode 100644
+index 0000000..ae6970c
+--- /dev/null
++++ b/package-lock.json
+@@ -0,0 +1,1100 @@
++{
++  "name": "rpconnect",
++  "version": "1.0.0",
++  "lockfileVersion": 3,
++  "requires": true,
++  "packages": {
++    "": {
++      "name": "rpconnect",
++      "version": "1.0.0",
++      "dependencies": {
++        "ejs": "^3.1.10",
++        "express": "^4.19.2",
++        "express-session": "^1.18.0",
++        "mysql2": "^3.10.0"
++      }
++    },
++    "node_modules/@types/node": {
++      "version": "26.1.1",
++      "resolved": "https://registry.npmjs.org/@types/node/-/node-26.1.1.tgz",
++      "integrity": "sha512-nxAkRSVkN1Y0JC1W8ky/fTfkGsMmcrRsbx+3XoZE+rMOX71kLYTV7fLXpqud1GpbpP5TuffXFqfX7fH2GgZREw==",
++      "license": "MIT",
++      "peer": true,
++      "dependencies": {
++        "undici-types": "~8.3.0"
++      }
++    },
++    "node_modules/accepts": {
++      "version": "1.3.8",
++      "resolved": "https://registry.npmjs.org/accepts/-/accepts-1.3.8.tgz",
++      "integrity": "sha512-PYAthTa2m2VKxuvSD3DPC/Gy+U+sOA1LAuT8mkmRuvw+NACSaeXEQ+NHcVF7rONl6qcaxV3Uuemwawk+7+SJLw==",
++      "license": "MIT",
++      "dependencies": {
++        "mime-types": "~2.1.34",
++        "negotiator": "0.6.3"
++      },
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/array-flatten": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmjs.org/array-flatten/-/array-flatten-1.1.1.tgz",
++      "integrity": "sha512-PCVAQswWemu6UdxsDFFX/+gVeYqKAod3D3UVm91jHwynguOwAvYPhx8nNlM++NqRcK6CxxpUafjmhIdKiHibqg==",
++      "license": "MIT"
++    },
++    "node_modules/async": {
++      "version": "3.2.6",
++      "resolved": "https://registry.npmjs.org/async/-/async-3.2.6.tgz",
++      "integrity": "sha512-htCUDlxyyCLMgaM3xXg0C0LW2xqfuQ6p05pCEIsXuyQ+a1koYKTuBMzRNwmybfLgvJDMd0r1LTn4+E0Ti6C2AA==",
++      "license": "MIT"
++    },
++    "node_modules/aws-ssl-profiles": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmjs.org/aws-ssl-profiles/-/aws-ssl-profiles-1.1.2.tgz",
++      "integrity": "sha512-NZKeq9AfyQvEeNlN0zSYAaWrmBffJh3IELMZfRpJVWgrpEbtEpnjvzqBPf+mxoI287JohRDoa+/nsfqqiZmF6g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 6.0.0"
++      }
++    },
++    "node_modules/balanced-match": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/balanced-match/-/balanced-match-1.0.2.tgz",
++      "integrity": "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==",
++      "license": "MIT"
++    },
++    "node_modules/body-parser": {
++      "version": "1.20.6",
++      "resolved": "https://registry.npmjs.org/body-parser/-/body-parser-1.20.6.tgz",
++      "integrity": "sha512-p5tAzS57i5MV9fZFDj9LeIiTZEufbSe2eDozP+ElheSUq1m74CRq1jI4mYNDdVs9vQztXFLuk/Gd6BWTdwRJ5g==",
++      "license": "MIT",
++      "dependencies": {
++        "bytes": "~3.1.2",
++        "content-type": "~1.0.5",
++        "debug": "2.6.9",
++        "depd": "2.0.0",
++        "destroy": "~1.2.0",
++        "http-errors": "~2.0.1",
++        "iconv-lite": "~0.4.24",
++        "on-finished": "~2.4.1",
++        "qs": "~6.15.1",
++        "raw-body": "~2.5.3",
++        "type-is": "~1.6.18",
++        "unpipe": "~1.0.0"
++      },
++      "engines": {
++        "node": ">= 0.8",
++        "npm": "1.2.8000 || >= 1.4.16"
++      }
++    },
++    "node_modules/brace-expansion": {
++      "version": "2.1.2",
++      "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-2.1.2.tgz",
++      "integrity": "sha512-w5JZcKgdhDOgOwm8H+KgbosopHMuGcl6qbulwjtz3SM7I7P3yW1eAjzMPLrIE+NQ9vjgANKHWeMHnrT0OXW1oA==",
++      "license": "MIT",
++      "dependencies": {
++        "balanced-match": "^1.0.0"
++      }
++    },
++    "node_modules/bytes": {
++      "version": "3.1.2",
++      "resolved": "https://registry.npmjs.org/bytes/-/bytes-3.1.2.tgz",
++      "integrity": "sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/call-bind-apply-helpers": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/call-bind-apply-helpers/-/call-bind-apply-helpers-1.0.2.tgz",
++      "integrity": "sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==",
++      "license": "MIT",
++      "dependencies": {
++        "es-errors": "^1.3.0",
++        "function-bind": "^1.1.2"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/call-bound": {
++      "version": "1.0.4",
++      "resolved": "https://registry.npmjs.org/call-bound/-/call-bound-1.0.4.tgz",
++      "integrity": "sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg==",
++      "license": "MIT",
++      "dependencies": {
++        "call-bind-apply-helpers": "^1.0.2",
++        "get-intrinsic": "^1.3.0"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/content-disposition": {
++      "version": "0.5.4",
++      "resolved": "https://registry.npmjs.org/content-disposition/-/content-disposition-0.5.4.tgz",
++      "integrity": "sha512-FveZTNuGw04cxlAiWbzi6zTAL/lhehaWbTtgluJh4/E95DqMwTmha3KZN1aAWA8cFIhHzMZUvLevkw5Rqk+tSQ==",
++      "license": "MIT",
++      "dependencies": {
++        "safe-buffer": "5.2.1"
++      },
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/content-type": {
++      "version": "1.0.5",
++      "resolved": "https://registry.npmjs.org/content-type/-/content-type-1.0.5.tgz",
++      "integrity": "sha512-nTjqfcBFEipKdXCv4YDQWCfmcLZKm81ldF0pAopTvyrFGVbcR6P/VAAd5G7N+0tTr8QqiU0tFadD6FK4NtJwOA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/cookie": {
++      "version": "0.7.2",
++      "resolved": "https://registry.npmjs.org/cookie/-/cookie-0.7.2.tgz",
++      "integrity": "sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/cookie-signature": {
++      "version": "1.0.7",
++      "resolved": "https://registry.npmjs.org/cookie-signature/-/cookie-signature-1.0.7.tgz",
++      "integrity": "sha512-NXdYc3dLr47pBkpUCHtKSwIOQXLVn8dZEuywboCOJY/osA0wFSLlSawr3KN8qXJEyX66FcONTH8EIlVuK0yyFA==",
++      "license": "MIT"
++    },
++    "node_modules/debug": {
++      "version": "2.6.9",
++      "resolved": "https://registry.npmjs.org/debug/-/debug-2.6.9.tgz",
++      "integrity": "sha512-bC7ElrdJaJnPbAP+1EotYvqZsb3ecl5wi6Bfi6BJTUcNowp6cvspg0jXznRTKDjm/E7AdgFBVeAPVMNcKGsHMA==",
++      "license": "MIT",
++      "dependencies": {
++        "ms": "2.0.0"
++      }
++    },
++    "node_modules/denque": {
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/denque/-/denque-2.1.0.tgz",
++      "integrity": "sha512-HVQE3AAb/pxF8fQAoiqpvg9i3evqug3hoiwakOyZAwJm+6vZehbkYXZ0l4JxS+I3QxM97v5aaRNhj8v5oBhekw==",
++      "license": "Apache-2.0",
++      "engines": {
++        "node": ">=0.10"
++      }
++    },
++    "node_modules/depd": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/depd/-/depd-2.0.0.tgz",
++      "integrity": "sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/destroy": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmjs.org/destroy/-/destroy-1.2.0.tgz",
++      "integrity": "sha512-2sJGJTaXIIaR1w4iJSNoN0hnMY7Gpc/n8D4qSCJw8QqFWXf7cuAgnEHxBpweaVcPevC2l3KpjYCx3NypQQgaJg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8",
++        "npm": "1.2.8000 || >= 1.4.16"
++      }
++    },
++    "node_modules/dunder-proto": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/dunder-proto/-/dunder-proto-1.0.1.tgz",
++      "integrity": "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==",
++      "license": "MIT",
++      "dependencies": {
++        "call-bind-apply-helpers": "^1.0.1",
++        "es-errors": "^1.3.0",
++        "gopd": "^1.2.0"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/ee-first": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmjs.org/ee-first/-/ee-first-1.1.1.tgz",
++      "integrity": "sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==",
++      "license": "MIT"
++    },
++    "node_modules/ejs": {
++      "version": "3.1.10",
++      "resolved": "https://registry.npmjs.org/ejs/-/ejs-3.1.10.tgz",
++      "integrity": "sha512-UeJmFfOrAQS8OJWPZ4qtgHyWExa088/MtK5UEyoJGFH67cDEXkZSviOiKRCZ4Xij0zxI3JECgYs3oKx+AizQBA==",
++      "license": "Apache-2.0",
++      "dependencies": {
++        "jake": "^10.8.5"
++      },
++      "bin": {
++        "ejs": "bin/cli.js"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/encodeurl": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/encodeurl/-/encodeurl-2.0.0.tgz",
++      "integrity": "sha512-Q0n9HRi4m6JuGIV1eFlmvJB7ZEVxu93IrMyiMsGC0lrMJMWzRgx6WGquyfQgZVb31vhGgXnfmPNNXmxnOkRBrg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/es-define-property": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/es-define-property/-/es-define-property-1.0.1.tgz",
++      "integrity": "sha512-e3nRfgfUZ4rNGL232gUgX06QNyyez04KdjFrF+LTRoOXmrOgFKDg4BCdsjW8EnT69eqdYGmRpJwiPVYNrCaW3g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/es-errors": {
++      "version": "1.3.0",
++      "resolved": "https://registry.npmjs.org/es-errors/-/es-errors-1.3.0.tgz",
++      "integrity": "sha512-Zf5H2Kxt2xjTvbJvP2ZWLEICxA6j+hAmMzIlypy4xcBg1vKVnx89Wy0GbS+kf5cwCVFFzdCFh2XSCFNULS6csw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/es-object-atoms": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmjs.org/es-object-atoms/-/es-object-atoms-1.1.2.tgz",
++      "integrity": "sha512-HWcBoN6NileqtSydK2FqHbS/LoDd2pqrnQHLyJzBj4kOp/ky2MWMN694xOfkK8/SnUsW2DH7EfyVlydKCsm1Zw==",
++      "license": "MIT",
++      "dependencies": {
++        "es-errors": "^1.3.0"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/escape-html": {
++      "version": "1.0.3",
++      "resolved": "https://registry.npmjs.org/escape-html/-/escape-html-1.0.3.tgz",
++      "integrity": "sha512-NiSupZ4OeuGwr68lGIeym/ksIZMJodUGOSCZ/FSnTxcrekbvqrgdUxlJOMpijaKZVjAJrWrGs/6Jy8OMuyj9ow==",
++      "license": "MIT"
++    },
++    "node_modules/etag": {
++      "version": "1.8.1",
++      "resolved": "https://registry.npmjs.org/etag/-/etag-1.8.1.tgz",
++      "integrity": "sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/express": {
++      "version": "4.22.2",
++      "resolved": "https://registry.npmjs.org/express/-/express-4.22.2.tgz",
++      "integrity": "sha512-IuL+Elrou2ZvCFHs18/CIzy2Nzvo25nZ1/D2eIZlz7c+QUayAcYoiM2BthCjs+EBHVpjYjcuLDAiCWgeIX3X1Q==",
++      "license": "MIT",
++      "dependencies": {
++        "accepts": "~1.3.8",
++        "array-flatten": "1.1.1",
++        "body-parser": "~1.20.5",
++        "content-disposition": "~0.5.4",
++        "content-type": "~1.0.4",
++        "cookie": "~0.7.1",
++        "cookie-signature": "~1.0.6",
++        "debug": "2.6.9",
++        "depd": "2.0.0",
++        "encodeurl": "~2.0.0",
++        "escape-html": "~1.0.3",
++        "etag": "~1.8.1",
++        "finalhandler": "~1.3.1",
++        "fresh": "~0.5.2",
++        "http-errors": "~2.0.0",
++        "merge-descriptors": "1.0.3",
++        "methods": "~1.1.2",
++        "on-finished": "~2.4.1",
++        "parseurl": "~1.3.3",
++        "path-to-regexp": "~0.1.12",
++        "proxy-addr": "~2.0.7",
++        "qs": "~6.15.1",
++        "range-parser": "~1.2.1",
++        "safe-buffer": "5.2.1",
++        "send": "~0.19.0",
++        "serve-static": "~1.16.2",
++        "setprototypeof": "1.2.0",
++        "statuses": "~2.0.1",
++        "type-is": "~1.6.18",
++        "utils-merge": "1.0.1",
++        "vary": "~1.1.2"
++      },
++      "engines": {
++        "node": ">= 0.10.0"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/express-session": {
++      "version": "1.19.0",
++      "resolved": "https://registry.npmjs.org/express-session/-/express-session-1.19.0.tgz",
++      "integrity": "sha512-0csaMkGq+vaiZTmSMMGkfdCOabYv192VbytFypcvI0MANrp+4i/7yEkJ0sbAEhycQjntaKGzYfjfXQyVb7BHMA==",
++      "license": "MIT",
++      "dependencies": {
++        "cookie": "~0.7.2",
++        "cookie-signature": "~1.0.7",
++        "debug": "~2.6.9",
++        "depd": "~2.0.0",
++        "on-headers": "~1.1.0",
++        "parseurl": "~1.3.3",
++        "safe-buffer": "~5.2.1",
++        "uid-safe": "~2.1.5"
++      },
++      "engines": {
++        "node": ">= 0.8.0"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/filelist": {
++      "version": "1.0.6",
++      "resolved": "https://registry.npmjs.org/filelist/-/filelist-1.0.6.tgz",
++      "integrity": "sha512-5giy2PkLYY1cP39p17Ech+2xlpTRL9HLspOfEgm0L6CwBXBTgsK5ou0JtzYuepxkaQ/tvhCFIJ5uXo0OrM2DxA==",
++      "license": "Apache-2.0",
++      "dependencies": {
++        "minimatch": "^5.0.1"
++      }
++    },
++    "node_modules/finalhandler": {
++      "version": "1.3.2",
++      "resolved": "https://registry.npmjs.org/finalhandler/-/finalhandler-1.3.2.tgz",
++      "integrity": "sha512-aA4RyPcd3badbdABGDuTXCMTtOneUCAYH/gxoYRTZlIJdF0YPWuGqiAsIrhNnnqdXGswYk6dGujem4w80UJFhg==",
++      "license": "MIT",
++      "dependencies": {
++        "debug": "2.6.9",
++        "encodeurl": "~2.0.0",
++        "escape-html": "~1.0.3",
++        "on-finished": "~2.4.1",
++        "parseurl": "~1.3.3",
++        "statuses": "~2.0.2",
++        "unpipe": "~1.0.0"
++      },
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/forwarded": {
++      "version": "0.2.0",
++      "resolved": "https://registry.npmjs.org/forwarded/-/forwarded-0.2.0.tgz",
++      "integrity": "sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/fresh": {
++      "version": "0.5.2",
++      "resolved": "https://registry.npmjs.org/fresh/-/fresh-0.5.2.tgz",
++      "integrity": "sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/function-bind": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmjs.org/function-bind/-/function-bind-1.1.2.tgz",
++      "integrity": "sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==",
++      "license": "MIT",
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/generate-function": {
++      "version": "2.3.1",
++      "resolved": "https://registry.npmjs.org/generate-function/-/generate-function-2.3.1.tgz",
++      "integrity": "sha512-eeB5GfMNeevm/GRYq20ShmsaGcmI81kIX2K9XQx5miC8KdHaC6Jm0qQ8ZNeGOi7wYB8OsdxKs+Y2oVuTFuVwKQ==",
++      "license": "MIT",
++      "dependencies": {
++        "is-property": "^1.0.2"
++      }
++    },
++    "node_modules/get-intrinsic": {
++      "version": "1.3.0",
++      "resolved": "https://registry.npmjs.org/get-intrinsic/-/get-intrinsic-1.3.0.tgz",
++      "integrity": "sha512-9fSjSaos/fRIVIp+xSJlE6lfwhES7LNtKaCBIamHsjr2na1BiABJPo0mOjjz8GJDURarmCPGqaiVg5mfjb98CQ==",
++      "license": "MIT",
++      "dependencies": {
++        "call-bind-apply-helpers": "^1.0.2",
++        "es-define-property": "^1.0.1",
++        "es-errors": "^1.3.0",
++        "es-object-atoms": "^1.1.1",
++        "function-bind": "^1.1.2",
++        "get-proto": "^1.0.1",
++        "gopd": "^1.2.0",
++        "has-symbols": "^1.1.0",
++        "hasown": "^2.0.2",
++        "math-intrinsics": "^1.1.0"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/get-proto": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/get-proto/-/get-proto-1.0.1.tgz",
++      "integrity": "sha512-sTSfBjoXBp89JvIKIefqw7U2CCebsc74kiY6awiGogKtoSGbgjYE/G/+l9sF3MWFPNc9IcoOC4ODfKHfxFmp0g==",
++      "license": "MIT",
++      "dependencies": {
++        "dunder-proto": "^1.0.1",
++        "es-object-atoms": "^1.0.0"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/gopd": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmjs.org/gopd/-/gopd-1.2.0.tgz",
++      "integrity": "sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/has-symbols": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/has-symbols/-/has-symbols-1.1.0.tgz",
++      "integrity": "sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/hasown": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmjs.org/hasown/-/hasown-2.0.4.tgz",
++      "integrity": "sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==",
++      "license": "MIT",
++      "dependencies": {
++        "function-bind": "^1.1.2"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/http-errors": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/http-errors/-/http-errors-2.0.1.tgz",
++      "integrity": "sha512-4FbRdAX+bSdmo4AUFuS0WNiPz8NgFt+r8ThgNWmlrjQjt1Q7ZR9+zTlce2859x4KSXrwIsaeTqDoKQmtP8pLmQ==",
++      "license": "MIT",
++      "dependencies": {
++        "depd": "~2.0.0",
++        "inherits": "~2.0.4",
++        "setprototypeof": "~1.2.0",
++        "statuses": "~2.0.2",
++        "toidentifier": "~1.0.1"
++      },
++      "engines": {
++        "node": ">= 0.8"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/iconv-lite": {
++      "version": "0.4.24",
++      "resolved": "https://registry.npmjs.org/iconv-lite/-/iconv-lite-0.4.24.tgz",
++      "integrity": "sha512-v3MXnZAcvnywkTUEZomIActle7RXXeedOR31wwl7VlyoXO4Qi9arvSenNQWne1TcRwhCL1HwLI21bEqdpj8/rA==",
++      "license": "MIT",
++      "dependencies": {
++        "safer-buffer": ">= 2.1.2 < 3"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/inherits": {
++      "version": "2.0.4",
++      "resolved": "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz",
++      "integrity": "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==",
++      "license": "ISC"
++    },
++    "node_modules/ipaddr.js": {
++      "version": "1.9.1",
++      "resolved": "https://registry.npmjs.org/ipaddr.js/-/ipaddr.js-1.9.1.tgz",
++      "integrity": "sha512-0KI/607xoxSToH7GjN1FfSbLoU0+btTicjsQSWQlh/hZykN8KpmMf7uYwPW3R+akZ6R/w18ZlXSHBYXiYUPO3g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.10"
++      }
++    },
++    "node_modules/is-property": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/is-property/-/is-property-1.0.2.tgz",
++      "integrity": "sha512-Ks/IoX00TtClbGQr4TWXemAnktAQvYB7HzcCxDGqEZU6oCmb2INHuOoKxbtR+HFkmYWBKv/dOZtGRiAjDhj92g==",
++      "license": "MIT"
++    },
++    "node_modules/jake": {
++      "version": "10.9.4",
++      "resolved": "https://registry.npmjs.org/jake/-/jake-10.9.4.tgz",
++      "integrity": "sha512-wpHYzhxiVQL+IV05BLE2Xn34zW1S223hvjtqk0+gsPrwd/8JNLXJgZZM/iPFsYc1xyphF+6M6EvdE5E9MBGkDA==",
++      "license": "Apache-2.0",
++      "dependencies": {
++        "async": "^3.2.6",
++        "filelist": "^1.0.4",
++        "picocolors": "^1.1.1"
++      },
++      "bin": {
++        "jake": "bin/cli.js"
++      },
++      "engines": {
++        "node": ">=10"
++      }
++    },
++    "node_modules/long": {
++      "version": "5.3.2",
++      "resolved": "https://registry.npmjs.org/long/-/long-5.3.2.tgz",
++      "integrity": "sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==",
++      "license": "Apache-2.0"
++    },
++    "node_modules/lru.min": {
++      "version": "1.1.4",
++      "resolved": "https://registry.npmjs.org/lru.min/-/lru.min-1.1.4.tgz",
++      "integrity": "sha512-DqC6n3QQ77zdFpCMASA1a3Jlb64Hv2N2DciFGkO/4L9+q/IpIAuRlKOvCXabtRW6cQf8usbmM6BE/TOPysCdIA==",
++      "license": "MIT",
++      "engines": {
++        "bun": ">=1.0.0",
++        "deno": ">=1.30.0",
++        "node": ">=8.0.0"
++      },
++      "funding": {
++        "type": "github",
++        "url": "https://github.com/sponsors/wellwelwel"
++      }
++    },
++    "node_modules/math-intrinsics": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/math-intrinsics/-/math-intrinsics-1.1.0.tgz",
++      "integrity": "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      }
++    },
++    "node_modules/media-typer": {
++      "version": "0.3.0",
++      "resolved": "https://registry.npmjs.org/media-typer/-/media-typer-0.3.0.tgz",
++      "integrity": "sha512-dq+qelQ9akHpcOl/gUVRTxVIOkAJ1wR3QAvb4RsVjS8oVoFjDGTc679wJYmUmknUF5HwMLOgb5O+a3KxfWapPQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/merge-descriptors": {
++      "version": "1.0.3",
++      "resolved": "https://registry.npmjs.org/merge-descriptors/-/merge-descriptors-1.0.3.tgz",
++      "integrity": "sha512-gaNvAS7TZ897/rVaZ0nMtAyxNyi/pdbjbAwUpFQpN70GqnVfOiXpeUUMKRBmzXaSQ8DdTX4/0ms62r2K+hE6mQ==",
++      "license": "MIT",
++      "funding": {
++        "url": "https://github.com/sponsors/sindresorhus"
++      }
++    },
++    "node_modules/methods": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmjs.org/methods/-/methods-1.1.2.tgz",
++      "integrity": "sha512-iclAHeNqNm68zFtnZ0e+1L2yUIdvzNoauKU4WBA3VvH/vPFieF7qfRlwUZU+DA9P9bPXIS90ulxoUoCH23sV2w==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/mime": {
++      "version": "1.6.0",
++      "resolved": "https://registry.npmjs.org/mime/-/mime-1.6.0.tgz",
++      "integrity": "sha512-x0Vn8spI+wuJ1O6S7gnbaQg8Pxh4NNHb7KSINmEWKiPE4RKOplvijn+NkmYmmRgP68mc70j2EbeTFRsrswaQeg==",
++      "license": "MIT",
++      "bin": {
++        "mime": "cli.js"
++      },
++      "engines": {
++        "node": ">=4"
++      }
++    },
++    "node_modules/mime-db": {
++      "version": "1.52.0",
++      "resolved": "https://registry.npmjs.org/mime-db/-/mime-db-1.52.0.tgz",
++      "integrity": "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/mime-types": {
++      "version": "2.1.35",
++      "resolved": "https://registry.npmjs.org/mime-types/-/mime-types-2.1.35.tgz",
++      "integrity": "sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw==",
++      "license": "MIT",
++      "dependencies": {
++        "mime-db": "1.52.0"
++      },
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/minimatch": {
++      "version": "5.1.9",
++      "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-5.1.9.tgz",
++      "integrity": "sha512-7o1wEA2RyMP7Iu7GNba9vc0RWWGACJOCZBJX2GJWip0ikV+wcOsgVuY9uE8CPiyQhkGFSlhuSkZPavN7u1c2Fw==",
++      "license": "ISC",
++      "dependencies": {
++        "brace-expansion": "^2.0.1"
++      },
++      "engines": {
++        "node": ">=10"
++      }
++    },
++    "node_modules/ms": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/ms/-/ms-2.0.0.tgz",
++      "integrity": "sha512-Tpp60P6IUJDTuOq/5Z8cdskzJujfwqfOTkrwIwj7IRISpnkJnT6SyJ4PCPnGMoFjC9ddhal5KVIYtAt97ix05A==",
++      "license": "MIT"
++    },
++    "node_modules/mysql2": {
++      "version": "3.23.1",
++      "resolved": "https://registry.npmjs.org/mysql2/-/mysql2-3.23.1.tgz",
++      "integrity": "sha512-tTuRnC7qCet2IOfSNMYZ5SwXuBnfvBPAcIA28P0gtruXyZlU1LMxA6uha32kYypoFgyYklMqhLWwt4laYwXR/Q==",
++      "license": "MIT",
++      "dependencies": {
++        "aws-ssl-profiles": "^1.1.2",
++        "denque": "^2.1.0",
++        "generate-function": "^2.3.1",
++        "iconv-lite": "^0.7.2",
++        "long": "^5.3.2",
++        "lru.min": "^1.1.4",
++        "named-placeholders": "^1.1.6",
++        "sql-escaper": "^1.5.1"
++      },
++      "engines": {
++        "node": ">= 8.0"
++      },
++      "peerDependencies": {
++        "@types/node": ">= 8"
++      }
++    },
++    "node_modules/mysql2/node_modules/iconv-lite": {
++      "version": "0.7.3",
++      "resolved": "https://registry.npmjs.org/iconv-lite/-/iconv-lite-0.7.3.tgz",
++      "integrity": "sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ==",
++      "license": "MIT",
++      "dependencies": {
++        "safer-buffer": ">= 2.1.2 < 3.0.0"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      },
++      "funding": {
++        "type": "opencollective",
++        "url": "https://opencollective.com/express"
++      }
++    },
++    "node_modules/named-placeholders": {
++      "version": "1.1.6",
++      "resolved": "https://registry.npmjs.org/named-placeholders/-/named-placeholders-1.1.6.tgz",
++      "integrity": "sha512-Tz09sEL2EEuv5fFowm419c1+a/jSMiBjI9gHxVLrVdbUkkNUUfjsVYs9pVZu5oCon/kmRh9TfLEObFtkVxmY0w==",
++      "license": "MIT",
++      "dependencies": {
++        "lru.min": "^1.1.0"
++      },
++      "engines": {
++        "node": ">=8.0.0"
++      }
++    },
++    "node_modules/negotiator": {
++      "version": "0.6.3",
++      "resolved": "https://registry.npmjs.org/negotiator/-/negotiator-0.6.3.tgz",
++      "integrity": "sha512-+EUsqGPLsM+j/zdChZjsnX51g4XrHFOIXwfnCVPGlQk/k5giakcKsuxCObBRu6DSm9opw/O6slWbJdghQM4bBg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/object-inspect": {
++      "version": "1.13.4",
++      "resolved": "https://registry.npmjs.org/object-inspect/-/object-inspect-1.13.4.tgz",
++      "integrity": "sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/on-finished": {
++      "version": "2.4.1",
++      "resolved": "https://registry.npmjs.org/on-finished/-/on-finished-2.4.1.tgz",
++      "integrity": "sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==",
++      "license": "MIT",
++      "dependencies": {
++        "ee-first": "1.1.1"
++      },
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/on-headers": {
++      "version": "1.1.0",
++      "resolved": "https://registry.npmjs.org/on-headers/-/on-headers-1.1.0.tgz",
++      "integrity": "sha512-737ZY3yNnXy37FHkQxPzt4UZ2UWPWiCZWLvFZ4fu5cueciegX0zGPnrlY6bwRg4FdQOe9YU8MkmJwGhoMybl8A==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/parseurl": {
++      "version": "1.3.3",
++      "resolved": "https://registry.npmjs.org/parseurl/-/parseurl-1.3.3.tgz",
++      "integrity": "sha512-CiyeOxFT/JZyN5m0z9PfXw4SCBJ6Sygz1Dpl0wqjlhDEGGBP1GnsUVEL0p63hoG1fcj3fHynXi9NYO4nWOL+qQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/path-to-regexp": {
++      "version": "0.1.13",
++      "resolved": "https://registry.npmjs.org/path-to-regexp/-/path-to-regexp-0.1.13.tgz",
++      "integrity": "sha512-A/AGNMFN3c8bOlvV9RreMdrv7jsmF9XIfDeCd87+I8RNg6s78BhJxMu69NEMHBSJFxKidViTEdruRwEk/WIKqA==",
++      "license": "MIT"
++    },
++    "node_modules/picocolors": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
++      "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==",
++      "license": "ISC"
++    },
++    "node_modules/proxy-addr": {
++      "version": "2.0.7",
++      "resolved": "https://registry.npmjs.org/proxy-addr/-/proxy-addr-2.0.7.tgz",
++      "integrity": "sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==",
++      "license": "MIT",
++      "dependencies": {
++        "forwarded": "0.2.0",
++        "ipaddr.js": "1.9.1"
++      },
++      "engines": {
++        "node": ">= 0.10"
++      }
++    },
++    "node_modules/qs": {
++      "version": "6.15.3",
++      "resolved": "https://registry.npmjs.org/qs/-/qs-6.15.3.tgz",
++      "integrity": "sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A==",
++      "license": "BSD-3-Clause",
++      "dependencies": {
++        "es-define-property": "^1.0.1",
++        "side-channel": "^1.1.1"
++      },
++      "engines": {
++        "node": ">=0.6"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/random-bytes": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmjs.org/random-bytes/-/random-bytes-1.0.0.tgz",
++      "integrity": "sha512-iv7LhNVO047HzYR3InF6pUcUsPQiHTM1Qal51DcGSuZFBil1aBBWG5eHPNek7bvILMaYJ/8RU1e8w1AMdHmLQQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/range-parser": {
++      "version": "1.2.1",
++      "resolved": "https://registry.npmjs.org/range-parser/-/range-parser-1.2.1.tgz",
++      "integrity": "sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/raw-body": {
++      "version": "2.5.3",
++      "resolved": "https://registry.npmjs.org/raw-body/-/raw-body-2.5.3.tgz",
++      "integrity": "sha512-s4VSOf6yN0rvbRZGxs8Om5CWj6seneMwK3oDb4lWDH0UPhWcxwOWw5+qk24bxq87szX1ydrwylIOp2uG1ojUpA==",
++      "license": "MIT",
++      "dependencies": {
++        "bytes": "~3.1.2",
++        "http-errors": "~2.0.1",
++        "iconv-lite": "~0.4.24",
++        "unpipe": "~1.0.0"
++      },
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/safe-buffer": {
++      "version": "5.2.1",
++      "resolved": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.2.1.tgz",
++      "integrity": "sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ==",
++      "funding": [
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/feross"
++        },
++        {
++          "type": "patreon",
++          "url": "https://www.patreon.com/feross"
++        },
++        {
++          "type": "consulting",
++          "url": "https://feross.org/support"
++        }
++      ],
++      "license": "MIT"
++    },
++    "node_modules/safer-buffer": {
++      "version": "2.1.2",
++      "resolved": "https://registry.npmjs.org/safer-buffer/-/safer-buffer-2.1.2.tgz",
++      "integrity": "sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==",
++      "license": "MIT"
++    },
++    "node_modules/send": {
++      "version": "0.19.2",
++      "resolved": "https://registry.npmjs.org/send/-/send-0.19.2.tgz",
++      "integrity": "sha512-VMbMxbDeehAxpOtWJXlcUS5E8iXh6QmN+BkRX1GARS3wRaXEEgzCcB10gTQazO42tpNIya8xIyNx8fll1OFPrg==",
++      "license": "MIT",
++      "dependencies": {
++        "debug": "2.6.9",
++        "depd": "2.0.0",
++        "destroy": "1.2.0",
++        "encodeurl": "~2.0.0",
++        "escape-html": "~1.0.3",
++        "etag": "~1.8.1",
++        "fresh": "~0.5.2",
++        "http-errors": "~2.0.1",
++        "mime": "1.6.0",
++        "ms": "2.1.3",
++        "on-finished": "~2.4.1",
++        "range-parser": "~1.2.1",
++        "statuses": "~2.0.2"
++      },
++      "engines": {
++        "node": ">= 0.8.0"
++      }
++    },
++    "node_modules/send/node_modules/ms": {
++      "version": "2.1.3",
++      "resolved": "https://registry.npmjs.org/ms/-/ms-2.1.3.tgz",
++      "integrity": "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==",
++      "license": "MIT"
++    },
++    "node_modules/serve-static": {
++      "version": "1.16.3",
++      "resolved": "https://registry.npmjs.org/serve-static/-/serve-static-1.16.3.tgz",
++      "integrity": "sha512-x0RTqQel6g5SY7Lg6ZreMmsOzncHFU7nhnRWkKgWuMTu5NN0DR5oruckMqRvacAN9d5w6ARnRBXl9xhDCgfMeA==",
++      "license": "MIT",
++      "dependencies": {
++        "encodeurl": "~2.0.0",
++        "escape-html": "~1.0.3",
++        "parseurl": "~1.3.3",
++        "send": "~0.19.1"
++      },
++      "engines": {
++        "node": ">= 0.8.0"
++      }
++    },
++    "node_modules/setprototypeof": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmjs.org/setprototypeof/-/setprototypeof-1.2.0.tgz",
++      "integrity": "sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==",
++      "license": "ISC"
++    },
++    "node_modules/side-channel": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmjs.org/side-channel/-/side-channel-1.1.1.tgz",
++      "integrity": "sha512-6x6dK6zJdpTzF4sQeNYxwtvBzf6Eg4GtlesS94HOvTudUeyK2WXAaIfmDgsyslYrRBeFIlsi54AYsFGUuhmvrQ==",
++      "license": "MIT",
++      "dependencies": {
++        "es-errors": "^1.3.0",
++        "object-inspect": "^1.13.4",
++        "side-channel-list": "^1.0.1",
++        "side-channel-map": "^1.0.1",
++        "side-channel-weakmap": "^1.0.2"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/side-channel-list": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/side-channel-list/-/side-channel-list-1.0.1.tgz",
++      "integrity": "sha512-mjn/0bi/oUURjc5Xl7IaWi/OJJJumuoJFQJfDDyO46+hBWsfaVM65TBHq2eoZBhzl9EchxOijpkbRC8SVBQU0w==",
++      "license": "MIT",
++      "dependencies": {
++        "es-errors": "^1.3.0",
++        "object-inspect": "^1.13.4"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/side-channel-map": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/side-channel-map/-/side-channel-map-1.0.1.tgz",
++      "integrity": "sha512-VCjCNfgMsby3tTdo02nbjtM/ewra6jPHmpThenkTYh8pG9ucZ/1P8So4u4FGBek/BjpOVsDCMoLA/iuBKIFXRA==",
++      "license": "MIT",
++      "dependencies": {
++        "call-bound": "^1.0.2",
++        "es-errors": "^1.3.0",
++        "get-intrinsic": "^1.2.5",
++        "object-inspect": "^1.13.3"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/side-channel-weakmap": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/side-channel-weakmap/-/side-channel-weakmap-1.0.2.tgz",
++      "integrity": "sha512-WPS/HvHQTYnHisLo9McqBHOJk2FkHO/tlpvldyrnem4aeQp4hai3gythswg6p01oSoTl58rcpiFAjF2br2Ak2A==",
++      "license": "MIT",
++      "dependencies": {
++        "call-bound": "^1.0.2",
++        "es-errors": "^1.3.0",
++        "get-intrinsic": "^1.2.5",
++        "object-inspect": "^1.13.3",
++        "side-channel-map": "^1.0.1"
++      },
++      "engines": {
++        "node": ">= 0.4"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/ljharb"
++      }
++    },
++    "node_modules/sql-escaper": {
++      "version": "1.5.1",
++      "resolved": "https://registry.npmjs.org/sql-escaper/-/sql-escaper-1.5.1.tgz",
++      "integrity": "sha512-4toX5E1fQbBrpfXidaHnF0669nkAdETeIPTs2SUjxxD7RRIs9ICG4gtpmfc68JCEKehsdwLFqBu9VlQqZ1P1gg==",
++      "license": "MIT",
++      "engines": {
++        "bun": ">=1.0.0",
++        "deno": ">=2.0.0",
++        "node": ">=12.0.0"
++      },
++      "funding": {
++        "type": "github",
++        "url": "https://github.com/mysqljs/sql-escaper?sponsor=1"
++      }
++    },
++    "node_modules/statuses": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/statuses/-/statuses-2.0.2.tgz",
++      "integrity": "sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/toidentifier": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/toidentifier/-/toidentifier-1.0.1.tgz",
++      "integrity": "sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.6"
++      }
++    },
++    "node_modules/type-is": {
++      "version": "1.6.18",
++      "resolved": "https://registry.npmjs.org/type-is/-/type-is-1.6.18.tgz",
++      "integrity": "sha512-TkRKr9sUTxEH8MdfuCSP7VizJyzRNMjj2J2do2Jr3Kym598JVdEksuzPQCnlFPW4ky9Q+iA+ma9BGm06XQBy8g==",
++      "license": "MIT",
++      "dependencies": {
++        "media-typer": "0.3.0",
++        "mime-types": "~2.1.24"
++      },
++      "engines": {
++        "node": ">= 0.6"
++      }
++    },
++    "node_modules/uid-safe": {
++      "version": "2.1.5",
++      "resolved": "https://registry.npmjs.org/uid-safe/-/uid-safe-2.1.5.tgz",
++      "integrity": "sha512-KPHm4VL5dDXKz01UuEd88Df+KzynaohSL9fBh096KWAxSKZQDI2uBrVqtvRM4rwrIrRRKsdLNML/lnaaVSRioA==",
++      "license": "MIT",
++      "dependencies": {
++        "random-bytes": "~1.0.0"
++      },
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/undici-types": {
++      "version": "8.3.0",
++      "resolved": "https://registry.npmjs.org/undici-types/-/undici-types-8.3.0.tgz",
++      "integrity": "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==",
++      "license": "MIT",
++      "peer": true
++    },
++    "node_modules/unpipe": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmjs.org/unpipe/-/unpipe-1.0.0.tgz",
++      "integrity": "sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    },
++    "node_modules/utils-merge": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/utils-merge/-/utils-merge-1.0.1.tgz",
++      "integrity": "sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.4.0"
++      }
++    },
++    "node_modules/vary": {
++      "version": "1.1.2",
++      "resolved": "https://registry.npmjs.org/vary/-/vary-1.1.2.tgz",
++      "integrity": "sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.8"
++      }
++    }
++  }
++}
+diff --git a/package.json b/package.json
+new file mode 100644
+index 0000000..af27622
+--- /dev/null
++++ b/package.json
+@@ -0,0 +1,15 @@
++{
++  "name": "rpconnect",
++  "version": "1.0.0",
++  "description": "RPConnect - RP student community platform (C237 CA2). This branch: Class and Friend Groups feature.",
++  "main": "app.js",
++  "scripts": {
++    "start": "node app.js"
++  },
++  "dependencies": {
++    "ejs": "^3.1.10",
++    "express": "^4.19.2",
++    "express-session": "^1.18.0",
++    "mysql2": "^3.10.0"
++  }
++}
+diff --git a/public/css/style.css b/public/css/style.css
+new file mode 100644
+index 0000000..fdcf4de
+--- /dev/null
++++ b/public/css/style.css
+@@ -0,0 +1,91 @@
++/* Simple shared stylesheet for the Groups feature pages. */
++* { box-sizing: border-box; }
++
++body {
++    font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
++    margin: 0;
++    color: #1f2933;
++    background: #f5f7fa;
++}
++
++.site-header {
++    display: flex;
++    justify-content: space-between;
++    align-items: center;
++    background: #14532d;
++    color: #fff;
++    padding: 0.75rem 1.5rem;
++}
++.site-header h1 { margin: 0; font-size: 1.25rem; }
++.site-header a { color: #fff; text-decoration: none; margin-left: 1rem; }
++.site-header a:hover { text-decoration: underline; }
++
++main { max-width: 800px; margin: 1.5rem auto; padding: 0 1rem; }
++
++section { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
++          padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
++
++.page-intro { background: none; border: none; padding: 0; }
++
++.filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
++.filter-bar input[type="text"] { flex: 1; min-width: 200px; }
++
++input, select, textarea, button {
++    font: inherit;
++    padding: 0.45rem 0.6rem;
++    border: 1px solid #cbd5e1;
++    border-radius: 6px;
++}
++
++button, .button {
++    background: #14532d;
++    color: #fff;
++    border: none;
++    cursor: pointer;
++    text-decoration: none;
++    display: inline-block;
++}
++button:hover, .button:hover { background: #166534; }
++button.danger { background: #b91c1c; }
++
++.stacked-form { display: flex; flex-direction: column; gap: 0.5rem; max-width: 480px; }
++.stacked-form label { font-weight: 600; margin-top: 0.5rem; }
++fieldset { border: 1px solid #e2e8f0; border-radius: 6px; }
++
++.group-card { border-bottom: 1px solid #e2e8f0; padding: 0.75rem 0; }
++.group-card:last-child { border-bottom: none; }
++.group-card h3 { margin: 0 0 0.25rem; }
++.group-card h3 a { color: #14532d; text-decoration: none; }
++
++.tag {
++    display: inline-block;
++    background: #dcfce7;
++    color: #14532d;
++    border-radius: 999px;
++    padding: 0.1rem 0.6rem;
++    font-size: 0.8rem;
++    margin-right: 0.3rem;
++    text-transform: capitalize;
++}
++
++.meta { color: #64748b; font-size: 0.85rem; }
++.notice { background: #fef9c3; border-radius: 6px; padding: 0.5rem 0.75rem; }
++
++.group-facts { display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 1rem; }
++.group-facts dt { font-weight: 600; }
++.group-facts dd { margin: 0; }
++
++.actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
++
++.member-list, .request-list { list-style: none; padding: 0; margin: 0; }
++.member-list li, .request-list li {
++    display: flex; align-items: center; gap: 0.5rem;
++    padding: 0.35rem 0; border-bottom: 1px solid #f1f5f9;
++}
++
++.post { border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem 1rem; margin-top: 1rem; }
++.reply { border-left: 3px solid #dcfce7; margin: 0.5rem 0 0.5rem 1rem; padding: 0.25rem 0.75rem; }
++.reply-form { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
++.reply-form input { flex: 1; }
++
++.site-footer { text-align: center; color: #64748b; font-size: 0.85rem; padding: 1rem; }
+diff --git a/routes/groups.js b/routes/groups.js
+new file mode 100644
+index 0000000..cbf6058
+--- /dev/null
++++ b/routes/groups.js
+@@ -0,0 +1,444 @@
++// routes/groups.js - Class and Friend Groups feature (Member 5 - Ryan).
++// Every route follows the C237 flow:
++//   user action -> Express route -> SQL query -> database response -> EJS update
++//
++// NOTE: "groups" is a reserved word in MySQL 8, so the table name is
++// always written as `groups` (backticks) inside SQL strings.
++const express = require('express');
++const router = express.Router();
++const db = require('../db');
++
++// Single source of truth for the group-type dropdowns in the EJS forms
++// (matches the ENUM in sql/groups_schema.sql - no values hardcoded in views).
++const GROUP_TYPES = ['Class', 'Study', 'CCA', 'Interest', 'Friend'];
++
++// ------------------------------------------------------------------
++// Middleware: block every group route from unauthenticated visitors.
++// Member 1's login sets req.session.userId; without it -> /login.
++// ------------------------------------------------------------------
++function requireLogin(req, res, next) {
++    if (!req.session.userId) {
++        return res.redirect('/login');
++    }
++    next();
++}
++
++// ==================================================================
++// READ: GET /groups - browse and search all groups.
++// Filters come from the search form's query string (?q=&type=&diploma=)
++// and are appended to the SQL as parameterised WHERE conditions.
++// ==================================================================
++router.get('/groups', requireLogin, async (req, res) => {
++    try {
++        const { q, type, diploma } = req.query;
++
++        // Base query: every group + how many ACCEPTED members it has.
++        let sql = `
++            SELECT g.*, COUNT(gm.group_member_id) AS member_count
++            FROM \`groups\` g
++            LEFT JOIN group_members gm
++                   ON gm.group_id = g.group_id AND gm.join_status = 'accepted'
++            WHERE 1 = 1`;
++        const params = [];
++
++        // Each filter is optional - only added if the user filled it in.
++        if (q) {                       // keyword search on name/description/module
++            sql += ' AND (g.group_name LIKE ? OR g.description LIKE ? OR g.module_code LIKE ?)';
++            params.push(`%${q}%`, `%${q}%`, `%${q}%`);
++        }
++        if (type) {                    // filter by group type (Class/Study/...)
++            sql += ' AND g.group_type = ?';
++            params.push(type);
++        }
++        if (diploma) {                 // filter by diploma
++            sql += ' AND g.diploma = ?';
++            params.push(diploma);
++        }
++        sql += ' GROUP BY g.group_id ORDER BY g.created_at DESC';
++
++        const [groups] = await db.query(sql, params);
++
++        // Distinct diplomas already stored in the DB -> filter dropdown options.
++        const [diplomas] = await db.query(
++            'SELECT DISTINCT diploma FROM `groups` WHERE diploma IS NOT NULL ORDER BY diploma');
++
++        // Database response -> EJS update.
++        res.render('groups', {
++            groups,
++            groupTypes: GROUP_TYPES,
++            diplomas: diplomas.map(row => row.diploma),
++            filters: { q: q || '', type: type || '', diploma: diploma || '' }
++        });
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error loading groups');
++    }
++});
++
++// ==================================================================
++// CREATE (form): GET /groups/create - show the "new group" form.
++// ==================================================================
++router.get('/groups/create', requireLogin, (req, res) => {
++    res.render('createGroup', { groupTypes: GROUP_TYPES });
++});
++
++// ==================================================================
++// CREATE (insert): POST /groups/create
++// 1) INSERT the group  2) INSERT the creator as its accepted owner.
++// ==================================================================
++router.post('/groups/create', requireLogin, async (req, res) => {
++    try {
++        const { group_name, description, group_type, diploma, class_code,
++                module_code, year_of_study, semester, privacy, maximum_members } = req.body;
++
++        // INSERT the new group; empty optional fields are stored as NULL.
++        const [result] = await db.query(
++            `INSERT INTO \`groups\`
++                (creator_id, group_name, description, group_type, diploma,
++                 class_code, module_code, year_of_study, semester, privacy, maximum_members)
++             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
++            [req.session.userId, group_name, description, group_type,
++             diploma || null, class_code || null, module_code || null,
++             year_of_study || null, semester || null,
++             privacy, Number(maximum_members) || 50]);
++
++        // The creator automatically becomes the group's owner.
++        await db.query(
++            `INSERT INTO group_members (group_id, user_id, member_role, join_status)
++             VALUES (?, ?, 'owner', 'accepted')`,
++            [result.insertId, req.session.userId]);
++
++        // Redirect straight to the new group's page (uses the new auto id).
++        res.redirect(`/groups/${result.insertId}`);
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error creating group');
++    }
++});
++
++// ==================================================================
++// READ: GET /groups/:id - one group's details + discussion board.
++// Runs several SELECTs and passes everything to groupDetails.ejs.
++// ==================================================================
++router.get('/groups/:id', requireLogin, async (req, res) => {
++    try {
++        const groupId = req.params.id;
++
++        // 1) The group itself, joined with its creator's name.
++        const [groupRows] = await db.query(
++            `SELECT g.*, u.name AS creator_name
++             FROM \`groups\` g
++             JOIN users u ON u.user_id = g.creator_id
++             WHERE g.group_id = ?`, [groupId]);
++        if (groupRows.length === 0) return res.status(404).send('Group not found');
++        const group = groupRows[0];
++
++        // 2) Accepted members (owner first) for the member list + count.
++        const [members] = await db.query(
++            `SELECT gm.user_id, gm.member_role, gm.joined_at, u.name, u.diploma
++             FROM group_members gm
++             JOIN users u ON u.user_id = gm.user_id
++             WHERE gm.group_id = ? AND gm.join_status = 'accepted'
++             ORDER BY FIELD(gm.member_role, 'owner', 'moderator', 'member'), gm.joined_at`,
++            [groupId]);
++
++        // 3) The viewer's own membership row (decides which buttons to show).
++        const [myRows] = await db.query(
++            'SELECT member_role, join_status FROM group_members WHERE group_id = ? AND user_id = ?',
++            [groupId, req.session.userId]);
++        const myMembership = myRows[0] || null;
++        const isOwner = myMembership && myMembership.member_role === 'owner'
++                        && myMembership.join_status === 'accepted';
++        const isMember = myMembership && myMembership.join_status === 'accepted';
++
++        // 4) Pending join requests - only fetched for the owner/moderator.
++        let pendingRequests = [];
++        if (isOwner || (isMember && myMembership.member_role === 'moderator')) {
++            const [pending] = await db.query(
++                `SELECT gm.user_id, gm.joined_at, u.name, u.diploma
++                 FROM group_members gm
++                 JOIN users u ON u.user_id = gm.user_id
++                 WHERE gm.group_id = ? AND gm.join_status = 'pending'
++                 ORDER BY gm.joined_at`, [groupId]);
++            pendingRequests = pending;
++        }
++
++        // 5) Discussion board: posts (newest first) with author names...
++        const [posts] = await db.query(
++            `SELECT p.group_post_id, p.content, p.created_at, u.name AS author_name
++             FROM group_posts p
++             JOIN users u ON u.user_id = p.user_id
++             WHERE p.group_id = ?
++             ORDER BY p.created_at DESC`, [groupId]);
++
++        // ...and all replies for this group's posts, attached to each post in JS.
++        const [replies] = await db.query(
++            `SELECT r.group_post_id, r.content, r.created_at, u.name AS author_name
++             FROM group_replies r
++             JOIN group_posts p ON p.group_post_id = r.group_post_id
++             JOIN users u ON u.user_id = r.user_id
++             WHERE p.group_id = ?
++             ORDER BY r.created_at`, [groupId]);
++        posts.forEach(post => {
++            post.replies = replies.filter(r => r.group_post_id === post.group_post_id);
++        });
++
++        // Database responses -> one EJS page.
++        res.render('groupDetails', {
++            group, members, posts, pendingRequests, myMembership, isMember, isOwner
++        });
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error loading group');
++    }
++});
++
++// ==================================================================
++// CREATE membership: POST /groups/:id/join
++// Public group  -> instantly 'accepted'.
++// Private group -> 'pending' until the owner approves.
++// ON DUPLICATE KEY lets a previously rejected user request again.
++// ==================================================================
++router.post('/groups/:id/join', requireLogin, async (req, res) => {
++    try {
++        const groupId = req.params.id;
++
++        const [groupRows] = await db.query(
++            'SELECT privacy, maximum_members FROM `groups` WHERE group_id = ?', [groupId]);
++        if (groupRows.length === 0) return res.status(404).send('Group not found');
++        const group = groupRows[0];
++
++        // Capacity check: count current accepted members before letting anyone in.
++        const [[{ count }]] = await db.query(
++            `SELECT COUNT(*) AS count FROM group_members
++             WHERE group_id = ? AND join_status = 'accepted'`, [groupId]);
++        if (group.privacy === 'public' && count >= group.maximum_members) {
++            return res.status(400).send('This group is already full');
++        }
++
++        // Public -> accepted immediately; private -> pending request.
++        const status = group.privacy === 'public' ? 'accepted' : 'pending';
++
++        // UNIQUE(group_id, user_id) means an existing row (e.g. 'rejected')
++        // is UPDATEd back to a fresh request instead of inserting a duplicate.
++        await db.query(
++            `INSERT INTO group_members (group_id, user_id, member_role, join_status)
++             VALUES (?, ?, 'member', ?)
++             ON DUPLICATE KEY UPDATE
++                join_status = IF(join_status = 'accepted', join_status, VALUES(join_status)),
++                joined_at = NOW()`,
++            [groupId, req.session.userId, status]);
++
++        res.redirect(`/groups/${groupId}`);
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error joining group');
++    }
++});
++
++// ==================================================================
++// UPDATE membership: POST /groups/:id/requests/:userId/accept
++// Only the owner/moderator may approve a pending join request.
++// ==================================================================
++router.post('/groups/:id/requests/:userId/accept', requireLogin, async (req, res) => {
++    try {
++        const { id: groupId, userId } = req.params;
++
++        // Authorisation: the logged-in user must be this group's owner/moderator.
++        const [roleRows] = await db.query(
++            `SELECT member_role FROM group_members
++             WHERE group_id = ? AND user_id = ? AND join_status = 'accepted'
++               AND member_role IN ('owner', 'moderator')`,
++            [groupId, req.session.userId]);
++        if (roleRows.length === 0) return res.status(403).send('Only the group owner can manage requests');
++
++        // Capacity check before approving.
++        const [[{ count }]] = await db.query(
++            `SELECT COUNT(*) AS count FROM group_members
++             WHERE group_id = ? AND join_status = 'accepted'`, [groupId]);
++        const [[group]] = await db.query(
++            'SELECT maximum_members FROM `groups` WHERE group_id = ?', [groupId]);
++        if (count >= group.maximum_members) return res.status(400).send('Group is full');
++
++        // UPDATE the pending row to accepted (the "U" in CRUD).
++        await db.query(
++            `UPDATE group_members SET join_status = 'accepted', joined_at = NOW()
++             WHERE group_id = ? AND user_id = ? AND join_status = 'pending'`,
++            [groupId, userId]);
++
++        res.redirect(`/groups/${groupId}`);
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error accepting request');
++    }
++});
++
++// ==================================================================
++// UPDATE membership: POST /groups/:id/requests/:userId/reject
++// Same authorisation as accept, but marks the request 'rejected'.
++// ==================================================================
++router.post('/groups/:id/requests/:userId/reject', requireLogin, async (req, res) => {
++    try {
++        const { id: groupId, userId } = req.params;
++
++        const [roleRows] = await db.query(
++            `SELECT member_role FROM group_members
++             WHERE group_id = ? AND user_id = ? AND join_status = 'accepted'
++               AND member_role IN ('owner', 'moderator')`,
++            [groupId, req.session.userId]);
++        if (roleRows.length === 0) return res.status(403).send('Only the group owner can manage requests');
++
++        await db.query(
++            `UPDATE group_members SET join_status = 'rejected'
++             WHERE group_id = ? AND user_id = ? AND join_status = 'pending'`,
++            [groupId, userId]);
++
++        res.redirect(`/groups/${groupId}`);
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error rejecting request');
++    }
++});
++
++// ==================================================================
++// DELETE membership: POST /groups/:id/leave
++// The owner cannot leave (they must delete the group instead).
++// ==================================================================
++router.post('/groups/:id/leave', requireLogin, async (req, res) => {
++    try {
++        await db.query(
++            `DELETE FROM group_members
++             WHERE group_id = ? AND user_id = ? AND member_role != 'owner'`,
++            [req.params.id, req.session.userId]);
++        res.redirect('/groups');
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error leaving group');
++    }
++});
++
++// ==================================================================
++// CREATE post: POST /groups/:id/posts
++// Only accepted members may post on the group's discussion board.
++// ==================================================================
++router.post('/groups/:id/posts', requireLogin, async (req, res) => {
++    try {
++        const groupId = req.params.id;
++
++        // Authorisation: must be an accepted member of this group.
++        const [memberRows] = await db.query(
++            `SELECT group_member_id FROM group_members
++             WHERE group_id = ? AND user_id = ? AND join_status = 'accepted'`,
++            [groupId, req.session.userId]);
++        if (memberRows.length === 0) return res.status(403).send('Join the group before posting');
++
++        if (req.body.content && req.body.content.trim()) {
++            await db.query(
++                'INSERT INTO group_posts (group_id, user_id, content) VALUES (?, ?, ?)',
++                [groupId, req.session.userId, req.body.content.trim()]);
++        }
++        res.redirect(`/groups/${groupId}`);
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error creating post');
++    }
++});
++
++// ==================================================================
++// CREATE reply: POST /group-posts/:postId/replies
++// Looks up which group the post belongs to, checks membership, inserts.
++// ==================================================================
++router.post('/group-posts/:postId/replies', requireLogin, async (req, res) => {
++    try {
++        // Find the parent post so we know which group to check membership in.
++        const [postRows] = await db.query(
++            'SELECT group_id FROM group_posts WHERE group_post_id = ?', [req.params.postId]);
++        if (postRows.length === 0) return res.status(404).send('Post not found');
++        const groupId = postRows[0].group_id;
++
++        const [memberRows] = await db.query(
++            `SELECT group_member_id FROM group_members
++             WHERE group_id = ? AND user_id = ? AND join_status = 'accepted'`,
++            [groupId, req.session.userId]);
++        if (memberRows.length === 0) return res.status(403).send('Join the group before replying');
++
++        if (req.body.content && req.body.content.trim()) {
++            await db.query(
++                'INSERT INTO group_replies (group_post_id, user_id, content) VALUES (?, ?, ?)',
++                [req.params.postId, req.session.userId, req.body.content.trim()]);
++        }
++        res.redirect(`/groups/${groupId}`);
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error creating reply');
++    }
++});
++
++// ==================================================================
++// UPDATE group (form): GET /groups/:id/edit - owner-only edit form.
++// ==================================================================
++router.get('/groups/:id/edit', requireLogin, async (req, res) => {
++    try {
++        const [groupRows] = await db.query(
++            'SELECT * FROM `groups` WHERE group_id = ?', [req.params.id]);
++        if (groupRows.length === 0) return res.status(404).send('Group not found');
++        const group = groupRows[0];
++
++        // Authorisation: only the creator may edit the group's details.
++        if (group.creator_id !== req.session.userId) {
++            return res.status(403).send('Only the group owner can edit this group');
++        }
++        res.render('editGroup', { group, groupTypes: GROUP_TYPES });
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error loading edit form');
++    }
++});
++
++// ==================================================================
++// UPDATE group: POST /groups/:id/edit - the "U" in CRUD for groups.
++// ==================================================================
++router.post('/groups/:id/edit', requireLogin, async (req, res) => {
++    try {
++        const groupId = req.params.id;
++        const { group_name, description, group_type, diploma, class_code,
++                module_code, year_of_study, semester, privacy, maximum_members } = req.body;
++
++        // UPDATE only runs when the WHERE clause matches the owner's id,
++        // so nobody can edit a group they did not create.
++        await db.query(
++            `UPDATE \`groups\` SET
++                group_name = ?, description = ?, group_type = ?, diploma = ?,
++                class_code = ?, module_code = ?, year_of_study = ?, semester = ?,
++                privacy = ?, maximum_members = ?
++             WHERE group_id = ? AND creator_id = ?`,
++            [group_name, description, group_type,
++             diploma || null, class_code || null, module_code || null,
++             year_of_study || null, semester || null,
++             privacy, Number(maximum_members) || 50,
++             groupId, req.session.userId]);
++
++        res.redirect(`/groups/${groupId}`);
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error updating group');
++    }
++});
++
++// ==================================================================
++// DELETE group: POST /groups/:id/delete - the "D" in CRUD.
++// ON DELETE CASCADE in the schema removes members, posts and replies.
++// ==================================================================
++router.post('/groups/:id/delete', requireLogin, async (req, res) => {
++    try {
++        await db.query(
++            'DELETE FROM `groups` WHERE group_id = ? AND creator_id = ?',
++            [req.params.id, req.session.userId]);
++        res.redirect('/groups');
++    } catch (err) {
++        console.error(err);
++        res.status(500).send('Error deleting group');
++    }
++});
++
++module.exports = router;
+diff --git a/sql/groups_schema.sql b/sql/groups_schema.sql
+new file mode 100644
+index 0000000..6e50509
+--- /dev/null
++++ b/sql/groups_schema.sql
+@@ -0,0 +1,123 @@
++-- ============================================================
++-- RPConnect: Class and Friend Groups feature (Member 5 - Ryan)
++-- Run this script once in MySQL to create the tables.
++--   mysql -u root -p < sql/groups_schema.sql
++-- ============================================================
++
++CREATE DATABASE IF NOT EXISTS rpconnect;
++USE rpconnect;
++
++-- ------------------------------------------------------------
++-- users table is OWNED BY Member 1 (accounts/login feature).
++-- Created here with IF NOT EXISTS only so the groups feature
++-- can run standalone on this branch. Member 1's version wins.
++-- ------------------------------------------------------------
++CREATE TABLE IF NOT EXISTS users (
++    user_id        INT AUTO_INCREMENT PRIMARY KEY,
++    name           VARCHAR(100) NOT NULL,
++    email          VARCHAR(100) NOT NULL UNIQUE,
++    password       VARCHAR(255) NOT NULL,          -- hashed by Member 1's code
++    diploma        VARCHAR(100),
++    year_of_study  INT,
++    role           VARCHAR(20) DEFAULT 'student'
++);
++
++-- ------------------------------------------------------------
++-- groups: one row per group (class / study / CCA / interest / friend).
++-- NOTE: "groups" is a reserved word in MySQL 8, so it must be
++-- written in backticks in every SQL query.
++-- ------------------------------------------------------------
++CREATE TABLE IF NOT EXISTS `groups` (
++    group_id        INT AUTO_INCREMENT PRIMARY KEY,
++    creator_id      INT NOT NULL,                      -- user who created the group
++    group_name      VARCHAR(100) NOT NULL,
++    description     TEXT,
++    group_type      ENUM('Class','Study','CCA','Interest','Friend') NOT NULL,
++    diploma         VARCHAR(100),                      -- optional: only for class/study groups
++    class_code      VARCHAR(20),                       -- e.g. E36A
++    module_code     VARCHAR(20),                       -- e.g. C237
++    year_of_study   INT,
++    semester        INT,
++    privacy         ENUM('public','private') NOT NULL DEFAULT 'public',
++    maximum_members INT NOT NULL DEFAULT 50,
++    created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    FOREIGN KEY (creator_id) REFERENCES users(user_id)
++);
++
++-- ------------------------------------------------------------
++-- group_members: who is in (or has requested to join) a group.
++-- join_status implements the join-request flow:
++--   pending  -> requested a private group, waiting for owner
++--   accepted -> full member
++--   rejected -> owner turned the request down
++-- UNIQUE(group_id, user_id) means a user can only have ONE
++-- membership row per group (used by INSERT ... ON DUPLICATE KEY).
++-- ------------------------------------------------------------
++CREATE TABLE IF NOT EXISTS group_members (
++    group_member_id INT AUTO_INCREMENT PRIMARY KEY,
++    group_id        INT NOT NULL,
++    user_id         INT NOT NULL,
++    member_role     ENUM('owner','moderator','member') NOT NULL DEFAULT 'member',
++    join_status     ENUM('pending','accepted','rejected') NOT NULL DEFAULT 'pending',
++    joined_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    UNIQUE KEY uq_group_user (group_id, user_id),
++    FOREIGN KEY (group_id) REFERENCES `groups`(group_id) ON DELETE CASCADE,
++    FOREIGN KEY (user_id)  REFERENCES users(user_id)     ON DELETE CASCADE
++);
++
++-- ------------------------------------------------------------
++-- group_posts: discussion board posts inside a group.
++-- ON DELETE CASCADE: deleting a group also deletes its posts.
++-- ------------------------------------------------------------
++CREATE TABLE IF NOT EXISTS group_posts (
++    group_post_id INT AUTO_INCREMENT PRIMARY KEY,
++    group_id      INT NOT NULL,
++    user_id       INT NOT NULL,
++    content       TEXT NOT NULL,
++    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    FOREIGN KEY (group_id) REFERENCES `groups`(group_id) ON DELETE CASCADE,
++    FOREIGN KEY (user_id)  REFERENCES users(user_id)     ON DELETE CASCADE
++);
++
++-- ------------------------------------------------------------
++-- group_replies: replies under a group post.
++-- ON DELETE CASCADE: deleting a post also deletes its replies.
++-- ------------------------------------------------------------
++CREATE TABLE IF NOT EXISTS group_replies (
++    group_reply_id INT AUTO_INCREMENT PRIMARY KEY,
++    group_post_id  INT NOT NULL,
++    user_id        INT NOT NULL,
++    content        TEXT NOT NULL,
++    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    FOREIGN KEY (group_post_id) REFERENCES group_posts(group_post_id) ON DELETE CASCADE,
++    FOREIGN KEY (user_id)       REFERENCES users(user_id)             ON DELETE CASCADE
++);
++
++-- ============================================================
++-- Sample data for the live demo (safe to delete later).
++-- ============================================================
++INSERT INTO users (name, email, password, diploma, year_of_study) VALUES
++    ('Ryan',   'ryan@example.com',   'demo', 'Information Technology', 1),
++    ('Aisha',  'aisha@example.com',  'demo', 'Business',               2),
++    ('Marcus', 'marcus@example.com', 'demo', 'Information Technology', 1);
++
++INSERT INTO `groups`
++    (creator_id, group_name, description, group_type, diploma, class_code, module_code, year_of_study, semester, privacy, maximum_members)
++VALUES
++    (1, 'DIT E36A Class',        'A group for E36A students to find classmates and share reminders.', 'Class',    'Information Technology', 'E36A', NULL,   1, 1, 'public',  40),
++    (1, 'C237 Study Group',      'Revise C237 Software Application Development together.',            'Study',    'Information Technology', NULL,   'C237', 1, 1, 'public',  20),
++    (2, 'Anime Fans in RP',      'Weekly hangouts to talk about the current anime season.',           'Interest', NULL,                     NULL,   NULL,   NULL, NULL, 'private', 30);
++
++-- Creators are automatically owners of their own groups.
++INSERT INTO group_members (group_id, user_id, member_role, join_status) VALUES
++    (1, 1, 'owner',  'accepted'),
++    (2, 1, 'owner',  'accepted'),
++    (3, 2, 'owner',  'accepted'),
++    (1, 3, 'member', 'accepted'),
++    (3, 1, 'member', 'pending');   -- pending request to demo the accept/reject flow
++
++INSERT INTO group_posts (group_id, user_id, content) VALUES
++    (1, 3, 'Anyone wants to have lunch at South Food Court after C237 tomorrow?');
++
++INSERT INTO group_replies (group_post_id, user_id, content) VALUES
++    (1, 1, 'Count me in! Meet outside the classroom at 12:30.');
+diff --git a/views/createGroup.ejs b/views/createGroup.ejs
+new file mode 100644
+index 0000000..d4596f3
+--- /dev/null
++++ b/views/createGroup.ejs
+@@ -0,0 +1,63 @@
++<%# createGroup.ejs - the "C" in CRUD. Submits to POST /groups/create.
++    groupTypes is passed from the route (single source of truth). %>
++<%- include('partials/header', { title: 'Create Group' }) %>
++
++<section>
++    <h2>Create a New Group</h2>
++
++    <form method="POST" action="/groups/create" class="stacked-form">
++        <label for="group_name">Group name *</label>
++        <input type="text" id="group_name" name="group_name" required maxlength="100"
++               placeholder="e.g. DIT E36A Class">
++
++        <label for="description">Description</label>
++        <textarea id="description" name="description" rows="3"
++                  placeholder="What is this group for?"></textarea>
++
++        <label for="group_type">Group type *</label>
++        <select id="group_type" name="group_type" required>
++            <% groupTypes.forEach(type => { %>
++                <option value="<%= type %>"><%= type %> Group</option>
++            <% }) %>
++        </select>
++
++        <fieldset>
++            <legend>Class / module details (optional - for Class and Study groups)</legend>
++
++            <label for="diploma">Diploma</label>
++            <input type="text" id="diploma" name="diploma" placeholder="e.g. Information Technology">
++
++            <label for="class_code">Class code</label>
++            <input type="text" id="class_code" name="class_code" maxlength="20" placeholder="e.g. E36A">
++
++            <label for="module_code">Module code</label>
++            <input type="text" id="module_code" name="module_code" maxlength="20" placeholder="e.g. C237">
++
++            <label for="year_of_study">Year of study</label>
++            <input type="number" id="year_of_study" name="year_of_study" min="1" max="3">
++
++            <label for="semester">Semester</label>
++            <input type="number" id="semester" name="semester" min="1" max="2">
++        </fieldset>
++
++        <fieldset>
++            <legend>Privacy *</legend>
++            <label>
++                <input type="radio" name="privacy" value="public" checked>
++                Public - anyone can join instantly
++            </label>
++            <label>
++                <input type="radio" name="privacy" value="private">
++                Private - the owner must approve join requests
++            </label>
++        </fieldset>
++
++        <label for="maximum_members">Maximum members</label>
++        <input type="number" id="maximum_members" name="maximum_members" min="2" value="50">
++
++        <button type="submit">Create Group</button>
++        <a href="/groups">Cancel</a>
++    </form>
++</section>
++
++<%- include('partials/footer') %>
+diff --git a/views/devLogin.ejs b/views/devLogin.ejs
+new file mode 100644
+index 0000000..725f8ac
+--- /dev/null
++++ b/views/devLogin.ejs
+@@ -0,0 +1,25 @@
++<%# devLogin.ejs - TEMPORARY page for demoing this branch alone.
++    Lists real users from the database; picking one sets req.session.userId.
++    DELETE this file once Member 1's real login/register pages are merged. %>
++<%- include('partials/header', { title: 'Dev Login' }) %>
++
++<section>
++    <h2>Choose a demo user</h2>
++    <p class="notice">Temporary login for the Groups feature branch.
++       Member 1's real login (with password + OTP) replaces this page.</p>
++
++    <ul class="member-list">
++        <% users.forEach(user => { %>
++            <li>
++                <form method="POST" action="/login">
++                    <input type="hidden" name="user_id" value="<%= user.user_id %>">
++                    <button type="submit">
++                        Login as <%= user.name %> (<%= user.diploma || 'No diploma' %>)
++                    </button>
++                </form>
++            </li>
++        <% }) %>
++    </ul>
++</section>
++
++<%- include('partials/footer') %>
+diff --git a/views/editGroup.ejs b/views/editGroup.ejs
+new file mode 100644
+index 0000000..6dba9fe
+--- /dev/null
++++ b/views/editGroup.ejs
+@@ -0,0 +1,71 @@
++<%# editGroup.ejs - the "U" in CRUD. Prefilled with the group row from
++    GET /groups/:id/edit and submits to POST /groups/:id/edit. %>
++<%- include('partials/header', { title: 'Edit ' + group.group_name }) %>
++
++<section>
++    <h2>Edit Group</h2>
++
++    <form method="POST" action="/groups/<%= group.group_id %>/edit" class="stacked-form">
++        <label for="group_name">Group name *</label>
++        <input type="text" id="group_name" name="group_name" required maxlength="100"
++               value="<%= group.group_name %>">
++
++        <label for="description">Description</label>
++        <textarea id="description" name="description" rows="3"><%= group.description %></textarea>
++
++        <label for="group_type">Group type *</label>
++        <select id="group_type" name="group_type" required>
++            <% groupTypes.forEach(type => { %>
++                <option value="<%= type %>" <%= group.group_type === type ? 'selected' : '' %>>
++                    <%= type %> Group
++                </option>
++            <% }) %>
++        </select>
++
++        <fieldset>
++            <legend>Class / module details (optional)</legend>
++
++            <label for="diploma">Diploma</label>
++            <input type="text" id="diploma" name="diploma" value="<%= group.diploma || '' %>">
++
++            <label for="class_code">Class code</label>
++            <input type="text" id="class_code" name="class_code" maxlength="20"
++                   value="<%= group.class_code || '' %>">
++
++            <label for="module_code">Module code</label>
++            <input type="text" id="module_code" name="module_code" maxlength="20"
++                   value="<%= group.module_code || '' %>">
++
++            <label for="year_of_study">Year of study</label>
++            <input type="number" id="year_of_study" name="year_of_study" min="1" max="3"
++                   value="<%= group.year_of_study || '' %>">
++
++            <label for="semester">Semester</label>
++            <input type="number" id="semester" name="semester" min="1" max="2"
++                   value="<%= group.semester || '' %>">
++        </fieldset>
++
++        <fieldset>
++            <legend>Privacy *</legend>
++            <label>
++                <input type="radio" name="privacy" value="public"
++                       <%= group.privacy === 'public' ? 'checked' : '' %>>
++                Public - anyone can join instantly
++            </label>
++            <label>
++                <input type="radio" name="privacy" value="private"
++                       <%= group.privacy === 'private' ? 'checked' : '' %>>
++                Private - the owner must approve join requests
++            </label>
++        </fieldset>
++
++        <label for="maximum_members">Maximum members</label>
++        <input type="number" id="maximum_members" name="maximum_members" min="2"
++               value="<%= group.maximum_members %>">
++
++        <button type="submit">Save Changes</button>
++        <a href="/groups/<%= group.group_id %>">Cancel</a>
++    </form>
++</section>
++
++<%- include('partials/footer') %>
+diff --git a/views/groupDetails.ejs b/views/groupDetails.ejs
+new file mode 100644
+index 0000000..fe4b634
+--- /dev/null
++++ b/views/groupDetails.ejs
+@@ -0,0 +1,132 @@
++<%# groupDetails.ejs - one group's page. Data from GET /groups/:id:
++    group, members, posts (each with .replies), pendingRequests,
++    myMembership, isMember, isOwner %>
++<%- include('partials/header', { title: group.group_name }) %>
++
++<%# ---------- Group info ---------- %>
++<section class="group-header">
++    <h2><%= group.group_name %></h2>
++    <p class="meta">
++        <span class="tag"><%= group.group_type %> Group</span>
++        <span class="tag"><%= group.privacy %></span>
++        <span class="tag"><%= members.length %> / <%= group.maximum_members %> members</span>
++    </p>
++    <p><%= group.description %></p>
++
++    <%# Only render the detail rows that actually have data %>
++    <dl class="group-facts">
++        <% if (group.diploma) { %><dt>Diploma</dt><dd><%= group.diploma %></dd><% } %>
++        <% if (group.class_code) { %><dt>Class</dt><dd><%= group.class_code %></dd><% } %>
++        <% if (group.module_code) { %><dt>Module</dt><dd><%= group.module_code %></dd><% } %>
++        <% if (group.year_of_study) { %><dt>Year</dt><dd><%= group.year_of_study %></dd><% } %>
++        <% if (group.semester) { %><dt>Semester</dt><dd><%= group.semester %></dd><% } %>
++        <dt>Created by</dt><dd><%= group.creator_name %></dd>
++    </dl>
++
++    <%# ---------- Join / leave / owner buttons depend on the viewer's membership ---------- %>
++    <div class="actions">
++        <% if (isOwner) { %>
++            <a class="button" href="/groups/<%= group.group_id %>/edit">Edit Group</a>
++            <form method="POST" action="/groups/<%= group.group_id %>/delete"
++                  onsubmit="return confirm('Delete this group and all its posts?')">
++                <button type="submit" class="danger">Delete Group</button>
++            </form>
++        <% } else if (isMember) { %>
++            <form method="POST" action="/groups/<%= group.group_id %>/leave">
++                <button type="submit">Leave Group</button>
++            </form>
++        <% } else if (myMembership && myMembership.join_status === 'pending') { %>
++            <p class="notice">Your join request is pending the owner's approval.</p>
++        <% } else { %>
++            <form method="POST" action="/groups/<%= group.group_id %>/join">
++                <button type="submit">
++                    <%= group.privacy === 'public' ? 'Join Group' : 'Request to Join' %>
++                </button>
++            </form>
++        <% } %>
++    </div>
++</section>
++
++<%# ---------- Pending requests: only sent by the server to owners/moderators ---------- %>
++<% if (pendingRequests.length > 0) { %>
++    <section aria-label="Pending join requests">
++        <h3>Pending Join Requests</h3>
++        <ul class="request-list">
++            <% pendingRequests.forEach(request => { %>
++                <li>
++                    <span><%= request.name %> (<%= request.diploma || 'No diploma listed' %>)</span>
++                    <form method="POST"
++                          action="/groups/<%= group.group_id %>/requests/<%= request.user_id %>/accept">
++                        <button type="submit">Accept</button>
++                    </form>
++                    <form method="POST"
++                          action="/groups/<%= group.group_id %>/requests/<%= request.user_id %>/reject">
++                        <button type="submit" class="danger">Reject</button>
++                    </form>
++                </li>
++            <% }) %>
++        </ul>
++    </section>
++<% } %>
++
++<%# ---------- Member list ---------- %>
++<section aria-label="Group members">
++    <h3>Members (<%= members.length %>)</h3>
++    <ul class="member-list">
++        <% members.forEach(member => { %>
++            <li>
++                <%= member.name %>
++                <% if (member.member_role !== 'member') { %>
++                    <span class="tag"><%= member.member_role %></span>
++                <% } %>
++            </li>
++        <% }) %>
++    </ul>
++</section>
++
++<%# ---------- Discussion board (posts + replies) ---------- %>
++<section aria-label="Group discussion">
++    <h3>Discussion Board</h3>
++
++    <% if (isMember) { %>
++        <%# CREATE post -> POST /groups/:id/posts %>
++        <form method="POST" action="/groups/<%= group.group_id %>/posts" class="stacked-form">
++            <label for="content">New post</label>
++            <textarea id="content" name="content" rows="2" required
++                      placeholder="e.g. Anyone wants to have lunch after C237 tomorrow?"></textarea>
++            <button type="submit">Post</button>
++        </form>
++    <% } else { %>
++        <p class="notice">Join the group to take part in the discussion.</p>
++    <% } %>
++
++    <% if (posts.length === 0) { %>
++        <p>No posts yet. Start the conversation!</p>
++    <% } %>
++
++    <% posts.forEach(post => { %>
++        <article class="post">
++            <p><%= post.content %></p>
++            <p class="meta">by <%= post.author_name %> on <%= post.created_at.toLocaleString() %></p>
++
++            <%# Replies belonging to this post (attached in the route) %>
++            <% post.replies.forEach(reply => { %>
++                <article class="reply">
++                    <p><%= reply.content %></p>
++                    <p class="meta">by <%= reply.author_name %> on <%= reply.created_at.toLocaleString() %></p>
++                </article>
++            <% }) %>
++
++            <% if (isMember) { %>
++                <%# CREATE reply -> POST /group-posts/:postId/replies %>
++                <form method="POST" action="/group-posts/<%= post.group_post_id %>/replies"
++                      class="reply-form">
++                    <input type="text" name="content" required placeholder="Write a reply...">
++                    <button type="submit">Reply</button>
++                </form>
++            <% } %>
++        </article>
++    <% }) %>
++</section>
++
++<%- include('partials/footer') %>
+diff --git a/views/groups.ejs b/views/groups.ejs
+new file mode 100644
+index 0000000..3f68297
+--- /dev/null
++++ b/views/groups.ejs
+@@ -0,0 +1,63 @@
++<%# groups.ejs - browse/search page. Data comes from GET /groups:
++    groups (rows + member_count), groupTypes, diplomas, filters %>
++<%- include('partials/header', { title: 'Browse Groups' }) %>
++
++<section class="page-intro">
++    <h2>RP Circles</h2>
++    <p>Find your classmates, study buddies and friends across RP.</p>
++</section>
++
++<%# Search/filter form: submits back to GET /groups as a query string %>
++<section aria-label="Search groups">
++    <form method="GET" action="/groups" class="filter-bar">
++        <input type="text" name="q" placeholder="Search by name, description or module"
++               value="<%= filters.q %>">
++
++        <%# Dropdown options come from the server, not hardcoded here %>
++        <select name="type">
++            <option value="">All types</option>
++            <% groupTypes.forEach(type => { %>
++                <option value="<%= type %>" <%= filters.type === type ? 'selected' : '' %>>
++                    <%= type %> Group
++                </option>
++            <% }) %>
++        </select>
++
++        <%# Diploma options are DISTINCT values already stored in the database %>
++        <select name="diploma">
++            <option value="">All diplomas</option>
++            <% diplomas.forEach(dip => { %>
++                <option value="<%= dip %>" <%= filters.diploma === dip ? 'selected' : '' %>>
++                    <%= dip %>
++                </option>
++            <% }) %>
++        </select>
++
++        <button type="submit">Search</button>
++        <a href="/groups">Clear</a>
++    </form>
++</section>
++
++<%# Results list: one <article> card per group row from the database %>
++<section aria-label="Group results">
++    <% if (groups.length === 0) { %>
++        <p>No groups match your search. <a href="/groups/create">Create the first one!</a></p>
++    <% } %>
++
++    <% groups.forEach(group => { %>
++        <article class="group-card">
++            <h3><a href="/groups/<%= group.group_id %>"><%= group.group_name %></a></h3>
++            <p class="meta">
++                <span class="tag"><%= group.group_type %> Group</span>
++                <span class="tag"><%= group.privacy %></span>
++                <% if (group.diploma) { %><span class="tag"><%= group.diploma %></span><% } %>
++                <% if (group.class_code) { %><span class="tag">Class <%= group.class_code %></span><% } %>
++                <% if (group.module_code) { %><span class="tag"><%= group.module_code %></span><% } %>
++            </p>
++            <p><%= group.description %></p>
++            <p class="meta"><%= group.member_count %> / <%= group.maximum_members %> members</p>
++        </article>
++    <% }) %>
++</section>
++
++<%- include('partials/footer') %>
+diff --git a/views/partials/footer.ejs b/views/partials/footer.ejs
+new file mode 100644
+index 0000000..c96d9a4
+--- /dev/null
++++ b/views/partials/footer.ejs
+@@ -0,0 +1,6 @@
++</main>
++<footer class="site-footer">
++    <p>RPConnect &mdash; C237 CA2 &middot; Class and Friend Groups feature</p>
++</footer>
++</body>
++</html>
+diff --git a/views/partials/header.ejs b/views/partials/header.ejs
+new file mode 100644
+index 0000000..4d4ce9a
+--- /dev/null
++++ b/views/partials/header.ejs
+@@ -0,0 +1,22 @@
++<!DOCTYPE html>
++<html lang="en">
++<head>
++    <meta charset="UTF-8">
++    <meta name="viewport" content="width=device-width, initial-scale=1">
++    <title><%= title %> | RPConnect</title>
++    <link rel="stylesheet" href="/css/style.css">
++</head>
++<body>
++<header class="site-header">
++    <h1><a href="/groups">RPConnect</a></h1>
++    <nav>
++        <a href="/groups">Browse Groups</a>
++        <a href="/groups/create">Create Group</a>
++        <% if (currentUserId) { %>
++            <a href="/logout">Logout</a>
++        <% } else { %>
++            <a href="/login">Login</a>
++        <% } %>
++    </nav>
++</header>
++<main>
+-- 
+2.43.0
+
