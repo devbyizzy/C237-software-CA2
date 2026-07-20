@@ -1,2 +1,0 @@
-// Base URL of the backend API. Override by setting window.API_BASE_URL before this script loads.
-window.API_BASE_URL = window.API_BASE_URL || 'http://localhost:3000';
