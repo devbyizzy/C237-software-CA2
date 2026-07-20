@@ -1,46 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
-  initInteractivity();
   loadDashboard();
 });
 
-function initInteractivity() {
-  // Sidebar toggle (mobile)
-  const hamburgerBtn = document.getElementById('hamburgerBtn');
-  const sidebar = document.getElementById('sidebar');
-  if (hamburgerBtn && sidebar) {
-    hamburgerBtn.addEventListener('click', function () {
-      sidebar.classList.toggle('open');
-    });
-  }
-
-  // Create button placeholder
-  document.querySelectorAll('.create-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      alert('Create post/question flow coming soon!');
-    });
-  });
-
-  // Profile dropdown (notifications bell + user menu)
-  const profileMenuBtn = document.getElementById('profileMenuBtn');
-  const profileMenu = document.getElementById('profileMenu');
-  if (profileMenuBtn && profileMenu) {
-    profileMenuBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      profileMenu.classList.toggle('open');
-    });
-    document.addEventListener('click', function () {
-      profileMenu.classList.remove('open');
-    });
-  }
-
-  document.querySelectorAll('.notif-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      alert("No new notifications beyond what's shown here!");
-    });
-  });
-}
-
-// Delegated handlers for content rendered after fetch
 function bindDynamicHandlers(root) {
   root.querySelectorAll('.upvote-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -78,9 +39,8 @@ async function loadDashboard() {
     if (feed) {
       feed.insertAdjacentHTML(
         'afterbegin',
-        `<div class="card" style="border-color: rgba(251, 191, 36, 0.35)"><p class="card-content">Couldn't reach the backend API at ${window.API_BASE_URL}. Make sure the backend server is running.</p></div>`
+        `<div class="card" style="border-color:#e11d48"><p class="card-content">Couldn't reach the backend API at ${window.API_BASE_URL}. Make sure the backend server is running.</p></div>`
       );
-
     }
   }
 }
@@ -91,13 +51,6 @@ function renderDashboard(data) {
   const feedTitle = document.getElementById('feedTitle');
   if (feedTitle && data.currentProfile) {
     feedTitle.textContent = `Welcome back, ${data.currentProfile.display_name} 👋`;
-  }
-
-  const navAvatar = document.getElementById('navAvatar');
-  const navUsername = document.getElementById('navUsername');
-  if (data.currentProfile) {
-    if (navAvatar) navAvatar.textContent = data.currentProfile.display_name.charAt(0).toUpperCase();
-    if (navUsername) navUsername.textContent = data.currentProfile.display_name;
   }
 
   const notifDot = document.getElementById('notifDot');
@@ -216,13 +169,13 @@ function renderCcaMini(c) {
 
 function renderStudentMini(s) {
   return `
-    <div class="mini-card student-suggestion">
+    <a class="mini-card student-suggestion" href="/profile?id=${s.user_id}">
       <div class="avatar avatar-sm">${escapeHtml(s.display_name.charAt(0).toUpperCase())}</div>
       <div>
         <p class="mini-title">${escapeHtml(s.display_name)}</p>
         <span class="mini-meta">${escapeHtml(s.diploma)}</span>
       </div>
-    </div>`;
+    </a>`;
 }
 
 function escapeHtml(str) {

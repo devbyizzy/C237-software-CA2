@@ -1,12 +1,13 @@
 {
   "name": "rpconnect-frontend",
   "version": "1.0.0",
-  "description": "RPConnect - Static frontend that consumes the backend REST API",
+  "description": "RPConnect - EJS-rendered frontend that consumes the backend REST API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "ejs": "^3.1.10",
     "express": "^4.19.2",
     "start": "^5.1.0"
   }
