@@ -1,0 +1,63 @@
+<%# createGroup.ejs - the "C" in CRUD. Submits to POST /groups/create.
+    groupTypes is passed from the route (single source of truth). %>
+<%- include('partials/header', { title: 'Create Group' }) %>
+
+<section>
+    <h2>Create a New Group</h2>
+
+    <form method="POST" action="/groups/create" class="stacked-form">
+        <label for="group_name">Group name *</label>
+        <input type="text" id="group_name" name="group_name" required maxlength="100"
+               placeholder="e.g. DIT E36A Class">
+
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="3"
+                  placeholder="What is this group for?"></textarea>
+
+        <label for="group_type">Group type *</label>
+        <select id="group_type" name="group_type" required>
+            <% groupTypes.forEach(type => { %>
+                <option value="<%= type %>"><%= type %> Group</option>
+            <% }) %>
+        </select>
+
+        <fieldset>
+            <legend>Class / module details (optional - for Class and Study groups)</legend>
+
+            <label for="diploma">Diploma</label>
+            <input type="text" id="diploma" name="diploma" placeholder="e.g. Information Technology">
+
+            <label for="class_code">Class code</label>
+            <input type="text" id="class_code" name="class_code" maxlength="20" placeholder="e.g. E36A">
+
+            <label for="module_code">Module code</label>
+            <input type="text" id="module_code" name="module_code" maxlength="20" placeholder="e.g. C237">
+
+            <label for="year_of_study">Year of study</label>
+            <input type="number" id="year_of_study" name="year_of_study" min="1" max="3">
+
+            <label for="semester">Semester</label>
+            <input type="number" id="semester" name="semester" min="1" max="2">
+        </fieldset>
+
+        <fieldset>
+            <legend>Privacy *</legend>
+            <label>
+                <input type="radio" name="privacy" value="public" checked>
+                Public - anyone can join instantly
+            </label>
+            <label>
+                <input type="radio" name="privacy" value="private">
+                Private - the owner must approve join requests
+            </label>
+        </fieldset>
+
+        <label for="maximum_members">Maximum members</label>
+        <input type="number" id="maximum_members" name="maximum_members" min="2" value="50">
+
+        <button type="submit">Create Group</button>
+        <a href="/groups">Cancel</a>
+    </form>
+</section>
+
+<%- include('partials/footer') %>
