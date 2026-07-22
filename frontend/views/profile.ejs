@@ -2,78 +2,312 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RPConnect - My Profile</title>
-  <link rel="stylesheet" href="/css/style.css" />
-</head>
-<body>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
 
+  <title>RPConnect - My Profile</title>
+
+  <link
+    rel="stylesheet"
+    href="/css/style.css"
+  />
+</head>
+
+<body>
   <header class="navbar">
     <div class="navbar-left">
-      <button class="hamburger" id="hamburgerBtn" aria-label="Toggle menu">☰</button>
-      <a href="/" class="logo">🎓 RPConnect</a>
+      <button
+        class="hamburger"
+        id="hamburgerBtn"
+        type="button"
+        aria-label="Toggle menu"
+      >
+        ☰
+      </button>
+
+      <a href="/" class="logo">
+        🎓 RPConnect
+      </a>
     </div>
 
-    <form class="navbar-search" action="#" method="GET" onsubmit="return false;">
-      <span class="search-icon">🔍</span>
-      <input type="text" name="q" placeholder="Search students, questions, groups..." />
+    <form
+      class="navbar-search"
+      action="#"
+      method="GET"
+      onsubmit="return false;"
+    >
+      <span class="search-icon">
+        🔍
+      </span>
+
+      <input
+        type="text"
+        name="q"
+        placeholder="Search students, questions, groups..."
+      />
     </form>
 
     <div class="navbar-right">
-      <button class="btn btn-primary create-btn">+ Create</button>
+      <button
+        class="btn btn-primary create-btn"
+        type="button"
+      >
+        + Create
+      </button>
 
-      <button class="icon-btn notif-btn" aria-label="Notifications" title="Notifications">
+      <button
+        class="icon-btn notif-btn"
+        type="button"
+        aria-label="Notifications"
+        title="Notifications"
+      >
         🔔
-        <span class="notif-dot" id="notifDot" hidden></span>
+
+        <span
+          class="notif-dot"
+          id="notifDot"
+          hidden
+        ></span>
       </button>
 
       <div class="navbar-profile dropdown">
-        <button class="navbar-profile-trigger" id="profileMenuBtn">
-          <div class="avatar avatar-sm" id="navAvatar"></div>
-          <span class="navbar-username" id="navUsername"></span>
-          <span class="caret">▾</span>
+        <button
+          class="navbar-profile-trigger"
+          id="profileMenuBtn"
+          type="button"
+          aria-label="Open profile menu"
+        >
+          <div
+            class="avatar avatar-sm"
+            id="navAvatar"
+          >
+            <%= user && user.name
+              ? user.name.charAt(0).toUpperCase()
+              : "U"
+            %>
+          </div>
+
+          <span
+            class="navbar-username"
+            id="navUsername"
+          >
+            <%= user && user.username
+              ? user.username
+              : user && user.name
+                ? user.name
+                : "User"
+            %>
+          </span>
+
+          <span class="caret">
+            ▾
+          </span>
         </button>
-        <div class="dropdown-menu" id="profileMenu">
-          <a href="/profile" class="dropdown-item">🙍 My Profile</a>
-          <a href="/profile" class="dropdown-item">⚙️ Settings</a>
-          <a href="#" class="dropdown-item logout-item">🚪 Logout</a>
+
+        <div
+          class="dropdown-menu"
+          id="profileMenu"
+        >
+          <a
+            href="/profile"
+            class="dropdown-item"
+          >
+            🙍 My Profile
+          </a>
+
+          <a
+            href="/profile"
+            class="dropdown-item"
+          >
+            ⚙️ Settings
+          </a>
+
+          <form
+            action="/logout"
+            method="POST"
+            class="logout-form"
+          >
+            <button
+              type="submit"
+              class="dropdown-item logout-item"
+            >
+              🚪 Logout
+            </button>
+          </form>
         </div>
       </div>
     </div>
   </header>
 
   <div class="layout layout-2col">
-    <aside class="sidebar" id="sidebar">
+    <aside
+      class="sidebar"
+      id="sidebar"
+    >
       <nav class="sidebar-nav">
-        <a href="/" class="sidebar-link">
-          <span class="sidebar-icon">🏠</span> Home
+        <a
+          href="/"
+          class="sidebar-link"
+        >
+          <span class="sidebar-icon">
+            🏠
+          </span>
+
+          Home
         </a>
-        <a href="#" class="sidebar-link">
-          <span class="sidebar-icon">❓</span> Questions
+
+        <a
+          href="#"
+          class="sidebar-link"
+        >
+          <span class="sidebar-icon">
+            ❓
+          </span>
+
+          Questions
         </a>
-        <a href="#" class="sidebar-link">
-          <span class="sidebar-icon">👥</span> Groups
+
+        <a
+          href="#"
+          class="sidebar-link"
+        >
+          <span class="sidebar-icon">
+            👥
+          </span>
+
+          Groups
         </a>
         <a href="/ccas" class="sidebar-link">
           <span class="sidebar-icon">🎭</span> CCAs
         </a>
-        <a href="#" class="sidebar-link">
-          <span class="sidebar-icon">🗓️</span> Timetables
+
+        <a
+          href="#"
+          class="sidebar-link"
+        >
+          <span class="sidebar-icon">
+            🗓️
+          </span>
+
+          Timetables
         </a>
-        <a href="/students" class="sidebar-link">
-          <span class="sidebar-icon">🔎</span> Student Finder
+
+        <a
+          href="/students"
+          class="sidebar-link"
+        >
+          <span class="sidebar-icon">
+            🔎
+          </span>
+
+          Student Finder
         </a>
-        <a href="#" class="sidebar-link">
-          <span class="sidebar-icon">📌</span> My Groups
+
+        <a
+          href="#"
+          class="sidebar-link"
+        >
+          <span class="sidebar-icon">
+            📌
+          </span>
+
+          My Groups
         </a>
-        <a href="/profile" class="sidebar-link active">
-          <span class="sidebar-icon">🙍</span> My Profile
+
+        <a
+          href="/profile"
+          class="sidebar-link active"
+        >
+          <span class="sidebar-icon">
+            🙍
+          </span>
+
+          My Profile
         </a>
       </nav>
     </aside>
 
     <main class="feed">
+      <section class="profile-page-header">
+        <div class="profile-page-avatar">
+          <%= user && user.name
+            ? user.name.charAt(0).toUpperCase()
+            : "U"
+          %>
+        </div>
+
+        <div class="profile-page-details">
+          <h1>
+            <%= user && user.name
+              ? user.name
+              : "RPConnect User"
+            %>
+          </h1>
+
+          <p>
+            @<%= user && user.username
+              ? user.username
+              : "username"
+            %>
+          </p>
+
+          <p>
+            <%= user && user.email
+              ? user.email
+              : "No email available"
+            %>
+          </p>
+        </div>
+      </section>
+
       <div id="profileRoot"></div>
+
+      <section class="delete-account-section">
+        <h2>
+          Delete account
+        </h2>
+
+        <p>
+          Permanently delete your RPConnect
+          account and remove it from the
+          database. This action cannot be
+          undone.
+        </p>
+
+        <% if (deleteError) { %>
+          <div class="delete-account-error">
+            <%= deleteError %>
+          </div>
+        <% } %>
+
+        <form
+          action="/delete-account"
+          method="POST"
+          onsubmit="return confirm('Are you sure you want to permanently delete your account? This cannot be undone.');"
+        >
+          <label for="deletePassword">
+            Confirm your password
+          </label>
+
+          <input
+            type="password"
+            id="deletePassword"
+            name="password"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            required
+          />
+
+          <button
+            type="submit"
+            class="delete-account-button"
+          >
+            Permanently delete my account
+          </button>
+        </form>
+      </section>
     </main>
   </div>
 

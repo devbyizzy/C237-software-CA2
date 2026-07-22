@@ -1,5 +1,5 @@
-const express = require('express');
-const cors = require('cors');
+const express = require("express");
+const cors = require("cors");
 
 const dashboardRoutes = require('./routes/dashboard');
 const profileRoutes = require('./routes/profile');
@@ -11,8 +11,14 @@ const pool = require('./utils/db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -22,9 +28,9 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/students', studentsRoutes);
 app.use('/api/ccas', ccaRoutes);
 
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   res.json({
-    message: 'RPConnect API is running',
+    message: "RPConnect API is running",
     endpoints: [
       'GET  /api/dashboard',
       'GET  /api/profile',
@@ -36,11 +42,24 @@ app.get('/', (req, res) => {
   });
 });
 
-// 404 handler
 app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
+  res.status(404).json({
+    success: false,
+    message: "API endpoint not found.",
+  });
+});
+
+app.use((error, req, res, next) => {
+  console.error("Backend error:", error);
+
+  res.status(500).json({
+    success: false,
+    message: "An unexpected server error occurred.",
+  });
 });
 
 app.listen(PORT, () => {
-  console.log(`RPConnect backend API running at http://localhost:${PORT}`);
+  console.log(
+    `RPConnect backend API running at http://localhost:${PORT}`
+  );
 });
