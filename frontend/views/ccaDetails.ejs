@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RPConnect - Student Finder</title>
+  <title>RPConnect - CCA Details</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/icons@latest/tabler-icons.min.js"></script>
+  <script src="/js/ccaTheme.js"></script>
 </head>
 <body>
 
@@ -70,13 +72,13 @@
         <a href="#" class="sidebar-link">
           <span class="sidebar-icon">👥</span> Groups
         </a>
-        <a href="/ccas" class="sidebar-link">
+        <a href="/ccas" class="sidebar-link active">
           <span class="sidebar-icon">🎭</span> CCAs
         </a>
         <a href="#" class="sidebar-link">
           <span class="sidebar-icon">🗓️</span> Timetables
         </a>
-        <a href="/students" class="sidebar-link active">
+        <a href="/students" class="sidebar-link">
           <span class="sidebar-icon">🔎</span> Student Finder
         </a>
         <a href="#" class="sidebar-link">
@@ -89,40 +91,12 @@
     </aside>
 
     <main class="feed">
-      <h1 class="feed-title">Student Finder</h1>
-
-      <section class="feed-section">
-        <div class="card">
-          <form id="searchForm" class="search-filters">
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="diplomaInput">Diploma</label>
-              <input class="form-input" type="text" id="diplomaInput" name="diploma" placeholder="e.g. Information Technology" />
-            </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="classInput">Class</label>
-              <input class="form-input" type="text" id="classInput" name="class_code" placeholder="e.g. IT-01" />
-            </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="interestInput">Interest</label>
-              <input class="form-input" type="text" id="interestInput" name="interest" placeholder="e.g. Robotics" />
-            </div>
-            <div class="form-actions" style="margin-top:0;">
-              <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" id="clearFiltersBtn" class="btn btn-outline">Clear</button>
-            </div>
-          </form>
-        </div>
-      </section>
-
-      <section class="feed-section">
-        <p class="results-count" id="resultsCount"></p>
-        <div class="search-results-grid" id="studentResults"></div>
-      </section>
+      <div id="ccaDetailsRoot"></div>
     </main>
   </div>
 
   <script src="/js/config.js"></script>
   <script src="/js/nav.js"></script>
-  <script src="/js/students.js"></script>
+  <script src="/js/ccaDetails.js"></script>
 </body>
 </html>

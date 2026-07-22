@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <meta
+    name="description"
+    content="Log in to your RPConnect student account."
+  />
+
+  <title>Login | RPConnect</title>
+
+  <link
+    rel="stylesheet"
+    href="/css/style.css"
+  />
+
+  <script
+    src="/js/auth.js"
+    defer
+  ></script>
+</head>
+
+<body class="auth-page">
+  <div class="auth-background">
+    <div class="auth-glow auth-glow-primary"></div>
+    <div class="auth-glow auth-glow-accent"></div>
+    <div class="auth-grid"></div>
+  </div>
+
+  <main class="auth-layout">
+    <section class="auth-brand-panel">
+      <a
+        href="/"
+        class="auth-logo"
+        aria-label="RPConnect home"
+      >
+        <span class="auth-logo-icon">RP</span>
+        <span class="auth-logo-name">RPConnect</span>
+      </a>
+
+      <div class="auth-brand-content">
+        <span class="auth-eyebrow">
+          Republic Polytechnic Community
+        </span>
+
+        <h1 class="auth-brand-title">
+          Connect with your
+          <span>RP community.</span>
+        </h1>
+
+        <p class="auth-brand-description">
+          Discover interest groups, meet students with similar
+          interests and stay connected with the RP community.
+        </p>
+
+        <div class="auth-feature-list">
+          <div class="auth-feature-item">
+            <div class="auth-feature-icon">01</div>
+
+            <div>
+              <h2>Discover communities</h2>
+              <p>
+                Find groups based on your interests,
+                course and hobbies.
+              </p>
+            </div>
+          </div>
+
+          <div class="auth-feature-item">
+            <div class="auth-feature-icon">02</div>
+
+            <div>
+              <h2>Meet RP students</h2>
+              <p>
+                Connect with students across different
+                schools and diplomas.
+              </p>
+            </div>
+          </div>
+
+          <div class="auth-feature-item">
+            <div class="auth-feature-icon">03</div>
+
+            <div>
+              <h2>Stay involved</h2>
+              <p>
+                Join discussions, activities and
+                student-led communities.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="auth-brand-footer">
+        Made for the Republic Polytechnic community.
+      </p>
+    </section>
+
+    <section class="auth-form-panel">
+      <div class="auth-form-container">
+        <div class="auth-mobile-logo">
+          <a
+            href="/"
+            class="auth-logo"
+            aria-label="RPConnect home"
+          >
+            <span class="auth-logo-icon">RP</span>
+            <span class="auth-logo-name">RPConnect</span>
+          </a>
+        </div>
+
+        <div class="auth-form-heading">
+          <span class="auth-form-label">
+            Account login
+          </span>
+
+          <h2>Welcome back</h2>
+
+          <p>
+            Sign in using your username or RP email.
+          </p>
+        </div>
+
+        <% if (typeof error !== "undefined" && error) { %>
+          <div
+            class="auth-alert auth-alert-error"
+            role="alert"
+          >
+            <span class="auth-alert-icon">!</span>
+            <span><%= error %></span>
+          </div>
+        <% } %>
+
+        <% if (typeof success !== "undefined" && success) { %>
+          <div
+            class="auth-alert auth-alert-success"
+            role="status"
+          >
+            <span class="auth-alert-icon">✓</span>
+            <span><%= success %></span>
+          </div>
+        <% } %>
+
+        <form
+          class="auth-form"
+          action="/login"
+          method="POST"
+          data-auth-form="login"
+          novalidate
+        >
+          <div class="auth-field">
+            <label for="loginId">
+              Username or RP email
+            </label>
+
+            <div class="auth-input-wrapper">
+              <span
+                class="auth-input-icon"
+                aria-hidden="true"
+              >
+                @
+              </span>
+
+              <input
+                type="text"
+                id="loginId"
+                name="loginId"
+                value="<%= typeof formData !== 'undefined' && formData.loginId ? formData.loginId : '' %>"
+                placeholder="username or 23012345@myrp.edu.sg"
+                autocomplete="username"
+                required
+              />
+            </div>
+
+            <p
+              class="auth-field-message"
+              data-error-for="loginId"
+            ></p>
+          </div>
+
+          <div class="auth-field">
+            <div class="auth-label-row">
+              <label for="password">
+                Password
+              </label>
+
+              <a
+                href="#"
+                class="auth-forgot-link"
+              >
+                Forgot password?
+              </a>
+            </div>
+
+            <div class="auth-input-wrapper">
+              <span
+                class="auth-input-icon auth-lock-icon"
+                aria-hidden="true"
+              >
+                ●
+              </span>
+
+              <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                required
+              />
+
+              <button
+                type="button"
+                class="auth-password-toggle"
+                data-password-toggle="password"
+                aria-label="Show password"
+                aria-pressed="false"
+              >
+                <span class="auth-eye-show">Show</span>
+                <span class="auth-eye-hide">Hide</span>
+              </button>
+            </div>
+
+            <p
+              class="auth-field-message"
+              data-error-for="password"
+            ></p>
+          </div>
+
+          <div class="auth-options">
+            <label class="auth-checkbox">
+              <input
+                type="checkbox"
+                name="rememberMe"
+                value="true"
+              />
+
+              <span class="auth-checkbox-box"></span>
+              <span>Remember me</span>
+            </label>
+
+            <span class="auth-secure-text">
+              Secure student access
+            </span>
+          </div>
+
+          <button
+            type="submit"
+            class="auth-submit-button"
+          >
+            <span>Log in</span>
+            <span
+              class="auth-button-arrow"
+              aria-hidden="true"
+            >
+              →
+            </span>
+          </button>
+        </form>
+
+        <div class="auth-divider">
+          <span></span>
+          <p>New to RPConnect?</p>
+          <span></span>
+        </div>
+
+        <a
+          href="/register"
+          class="auth-secondary-button"
+        >
+          Create an account
+        </a>
+
+        <p class="auth-terms">
+          By continuing, you agree to use RPConnect
+          responsibly as part of the RP student community.
+        </p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

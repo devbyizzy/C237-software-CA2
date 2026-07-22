@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RPConnect - Student Finder</title>
+  <title>RPConnect - Add CCA</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/icons@latest/tabler-icons.min.js"></script>
 </head>
 <body>
 
@@ -70,13 +71,13 @@
         <a href="#" class="sidebar-link">
           <span class="sidebar-icon">👥</span> Groups
         </a>
-        <a href="/ccas" class="sidebar-link">
+        <a href="/ccas" class="sidebar-link active">
           <span class="sidebar-icon">🎭</span> CCAs
         </a>
         <a href="#" class="sidebar-link">
           <span class="sidebar-icon">🗓️</span> Timetables
         </a>
-        <a href="/students" class="sidebar-link active">
+        <a href="/students" class="sidebar-link">
           <span class="sidebar-icon">🔎</span> Student Finder
         </a>
         <a href="#" class="sidebar-link">
@@ -89,40 +90,71 @@
     </aside>
 
     <main class="feed">
-      <h1 class="feed-title">Student Finder</h1>
+      <h1 class="feed-title">Add New CCA</h1>
 
       <section class="feed-section">
         <div class="card">
-          <form id="searchForm" class="search-filters">
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="diplomaInput">Diploma</label>
-              <input class="form-input" type="text" id="diplomaInput" name="diploma" placeholder="e.g. Information Technology" />
+          <form id="ccaForm" class="cca-form">
+            <div id="formError" class="form-error" style="display:none;"></div>
+
+            <div class="form-group">
+              <label class="form-label" for="cca_name">CCA Name <span style="color:#e11d48;">*</span></label>
+              <input class="form-input" type="text" id="cca_name" name="cca_name" required />
             </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="classInput">Class</label>
-              <input class="form-input" type="text" id="classInput" name="class_code" placeholder="e.g. IT-01" />
+
+            <div class="form-group">
+              <label class="form-label" for="category">Category <span style="color:#e11d48;">*</span></label>
+              <select class="form-input" id="category" name="category" required>
+                <option value="">Select a category</option>
+                <option value="Technology">Technology</option>
+                <option value="Arts">Arts</option>
+                <option value="Sports">Sports</option>
+                <option value="Student Life">Student Life</option>
+              </select>
             </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="interestInput">Interest</label>
-              <input class="form-input" type="text" id="interestInput" name="interest" placeholder="e.g. Robotics" />
+
+            <div class="form-group">
+              <label class="form-label" for="description">Description</label>
+              <textarea class="form-textarea" id="description" name="description" rows="3"></textarea>
             </div>
-            <div class="form-actions" style="margin-top:0;">
-              <button type="submit" class="btn btn-primary">Search</button>
-              <button type="button" id="clearFiltersBtn" class="btn btn-outline">Clear</button>
+
+            <div class="form-group">
+              <label class="form-label" for="training_day">Training Day</label>
+              <input class="form-input" type="text" id="training_day" name="training_day" placeholder="e.g. Wednesday" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="training_time">Training Time</label>
+              <input class="form-input" type="text" id="training_time" name="training_time" placeholder="e.g. 14:00 – 16:30" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="location">Location</label>
+              <input class="form-input" type="text" id="location" name="location" placeholder="e.g. Lab B1-03" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="contact_information">Contact Information</label>
+              <input class="form-input" type="text" id="contact_information" name="contact_information" placeholder="e.g. Dr. Tan — tan@rp.edu.sg" />
+            </div>
+
+            <div class="form-group" style="background:rgba(42,42,58,0.35); padding:12px; border-radius:8px; border:1px dashed var(--border);">
+              <label class="form-label" style="color:var(--text-muted);">🖼️ Banner image</label>
+              <p class="card-content" style="margin-bottom:0;">Deprecated: CCA banners are now auto-generated from the category using a gradient and tabler icon.</p>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Create CCA</button>
+              <a href="/ccas" class="btn btn-outline">Cancel</a>
             </div>
           </form>
         </div>
-      </section>
-
-      <section class="feed-section">
-        <p class="results-count" id="resultsCount"></p>
-        <div class="search-results-grid" id="studentResults"></div>
       </section>
     </main>
   </div>
 
   <script src="/js/config.js"></script>
   <script src="/js/nav.js"></script>
-  <script src="/js/students.js"></script>
+  <script src="/js/ccaForm.js"></script>
 </body>
 </html>
