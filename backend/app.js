@@ -6,6 +6,8 @@ const profileRoutes = require('./routes/profile');
 const studentsRoutes = require('./routes/students');
 const ccaRoutes = require('./routes/ccas');
 
+const pool = require('./utils/db');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

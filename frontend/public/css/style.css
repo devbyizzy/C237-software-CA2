@@ -486,8 +486,214 @@ button { font-family: inherit; cursor: pointer; }
 
 .student-card { display: flex; flex-direction: column; gap: 10px; }
 
-.student-card-top { display: flex; align-items: center; gap: 12px; }
+.cca-banner {
+  position: relative;
+  height: 140px;
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 16px 20px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.cca-banner--detail {
+  height: 180px;
+  border-radius: 0;
+}
+
+.cca-banner-bg {
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  filter: brightness(0.95);
+  z-index: 0;
+}
+
+.cca-banner-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  z-index: 1;
+  opacity: 0.85;
+  mix-blend-mode: normal;
+}
+
+.cca-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.05) 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.cca-banner-deco {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.cca-icon-blob {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.14);
+  filter: blur(2px);
+}
+
+.cca-icon-blob--lg {
+  top: 12px;
+  right: 24px;
+  width: 64px;
+  height: 64px;
+  font-size: 40px;
+  opacity: 0.12;
+  transform: rotate(-12deg);
+}
+
+.cca-icon-blob--md {
+  bottom: 28px;
+  right: 80px;
+  width: 44px;
+  height: 44px;
+  font-size: 26px;
+  opacity: 0.16;
+  transform: rotate(8deg);
+}
+
+.cca-icon-blob--sm {
+  top: 36px;
+  right: 120px;
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+  opacity: 0.12;
+  transform: rotate(-4deg);
+}
+
+.cca-banner-text {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cca-banner-name {
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.15;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  word-break: break-word;
+}
 
 .results-count { font-size: 13px; color: var(--text-muted); margin: -4px 0 4px; }
 
 .theme-toggle-btn { font-size: 15px; }
+
+.quiz-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 10, 0.85);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.quiz-modal {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.quiz-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.quiz-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.quiz-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+}
+.quiz-close:hover { color: var(--text); }
+
+.quiz-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.quiz-step {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.quiz-question {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.quiz-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(42, 42, 58, 0.35);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+.quiz-option:hover { border-color: var(--primary); background: rgba(255, 0, 229, 0.05); }
+.quiz-option input { accent-color: var(--primary); }
+
+.quiz-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.quiz-match {
+  background: rgba(42, 42, 58, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+

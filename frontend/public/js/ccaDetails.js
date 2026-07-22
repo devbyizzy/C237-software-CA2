@@ -6,7 +6,6 @@ async function loadCcaDetails() {
   const root = document.getElementById('ccaDetailsRoot');
   if (!root) return;
 
-  // Extract CCA id from URL path: /ccas/:id
   const pathParts = window.location.pathname.split('/');
   const id = pathParts[pathParts.length - 1];
 
@@ -32,12 +31,32 @@ async function loadCcaDetails() {
   }
 }
 
+function getIconForCategory(category) {
+  var theme = (window.RPCCA && window.RPCCA.getCategoryTheme) ? window.RPCCA.getCategoryTheme(category || '') : { gradient: ['#3A3A5C','#5A5A7A','#8A8AAA'], icon: 'ti-star' };
+  return theme.icon || 'ti-star';
+}
+
 function renderCcaDetails(c) {
   const root = document.getElementById('ccaDetailsRoot');
+  const bannerGradient = bannerStyleForCategory(c.category || '');
+  const icon = getIconForCategory(c.category || '');
 
   root.innerHTML = `
     <div class="card" style="padding:0;overflow:hidden;">
-      ${c.image ? `<img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.cca_name)}" style="width:100%;height:240px;object-fit:cover;" onerror="this.style.display='none'" />` : ''}
+      <div class="cca-banner cca-banner--detail" style="${bannerGradient}">
+        <div class="cca-banner-bg"></div>
+        ${c.image ? `<img class="cca-banner-img" src="${escapeHtml(c.image)}" alt="${escapeHtml(c.cca_name)}" onerror="this.style.display='none'" />` : ''}
+        <div class="cca-banner-overlay"></div>
+        <div class="cca-banner-deco">
+          <span class="cca-icon-blob cca-icon-blob--lg"><i class="ti ${icon}"></i></span>
+          <span class="cca-icon-blob cca-icon-blob--md"><i class="ti ${icon}"></i></span>
+          <span class="cca-icon-blob cca-icon-blob--sm"><i class="ti ${icon}"></i></span>
+        </div>
+        <div class="cca-banner-text">
+          <p class="cca-banner-name">${escapeHtml(c.cca_name)}</p>
+          <span class="badge" style="background:rgba(255,255,255,0.2); color:#fff;">${escapeHtml(c.category || '')}</span>
+        </div>
+      </div>
       <div style="padding:20px 24px;">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
           <div>
@@ -87,12 +106,18 @@ function renderCcaDetails(c) {
   `;
 }
 
+function bannerStyleForCategory(category) {
+  var theme = (window.RPCCA && window.RPCCA.getCategoryTheme) ? window.RPCCA.getCategoryTheme(category || '') : null;
+  if (!theme || !theme.gradient || theme.gradient.length < 3) return 'background: linear-gradient(135deg, #3A3A5C, #5A5A7A, #8A8AAA);';
+  return 'background: linear-gradient(135deg, ' + theme.gradient[0] + ', ' + theme.gradient[1] + ', ' + theme.gradient[2] + ');';
+}
+
 function escapeHtml(str) {
   if (str === undefined || str === null) return '';
   return String(str)
     .replace(/&/g, '&amp;')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }

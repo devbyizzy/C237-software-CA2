@@ -28,8 +28,7 @@ document.addEventListener('DOMContentLoaded', function () {
       training_day: formData.get('training_day'),
       training_time: formData.get('training_time'),
       location: formData.get('location'),
-      contact_information: formData.get('contact_information'),
-      image: formData.get('image')
+      contact_information: formData.get('contact_information')
     };
 
     try {
@@ -109,7 +108,6 @@ async function loadCcaForEdit(id) {
     document.getElementById('training_time').value = cca.training_time || '';
     document.getElementById('location').value = cca.location || '';
     document.getElementById('contact_information').value = cca.contact_information || '';
-    document.getElementById('image').value = cca.image || '';
   } catch (err) {
     console.error('Failed to load CCA for edit:', err);
     formError.textContent = 'Could not load CCA data for editing. Make sure the backend server is running.';
