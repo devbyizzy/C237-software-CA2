@@ -4,6 +4,9 @@ const cors = require('cors');
 const dashboardRoutes = require('./routes/dashboard');
 const profileRoutes = require('./routes/profile');
 const studentsRoutes = require('./routes/students');
+const ccaRoutes = require('./routes/ccas');
+
+const pool = require('./utils/db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +20,7 @@ app.use(express.json());
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/students', studentsRoutes);
+app.use('/api/ccas', ccaRoutes);
 
 app.get('/', (req, res) => {
   res.json({
@@ -26,7 +30,8 @@ app.get('/', (req, res) => {
       'GET  /api/profile',
       'PUT  /api/profile',
       'GET  /api/profile/:id',
-      'GET  /api/students?diploma=&class_code=&interest='
+      'GET  /api/students?diploma=&class_code=&interest=',
+      'GET  /api/ccas?search=&category='
     ]
   });
 });

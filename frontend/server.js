@@ -21,6 +21,22 @@ app.get('/students', (req, res) => {
   res.render('students');
 });
 
+app.get('/ccas', (req, res) => {
+  res.render('ccas');
+});
+
+app.get('/ccas/:id', (req, res) => {
+  res.render('ccaDetails');
+});
+
+app.get('/admin/ccas/add', (req, res) => {
+  res.render('addCCA');
+});
+
+app.get('/admin/ccas/:id/edit', (req, res) => {
+  res.render('editCCA');
+});
+
 app.use((req, res) => {
   res.status(404).send('Page not found');
 });

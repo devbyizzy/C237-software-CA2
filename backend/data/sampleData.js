@@ -169,28 +169,84 @@ const ccas = [
     cca_name: "Robotics Club",
     description: "Build and program robots for regional and national competitions.",
     category: "Technology",
-    created_at: "2026-07-15T13:00:00"
+    created_at: "2026-07-15T13:00:00",
+    training_day: "Wednesday",
+    training_time: "14:00 – 16:30",
+    location: "Engineering Lab B1-03",
+    contact_information: "Dr. Tan Wei Ming — tan_weiming@rp.edu.sg",
+    image: "https://www.kuochuanpresbyteriansec.moe.edu.sg/images/The%20Kuo%20Chuan%20Experience/CCA/Robotics%20Club/CCA%201.jpeg"
   },
   {
     cca_id: 2,
     cca_name: "Debate Society",
     description: "Sharpen your argumentation and public speaking skills through inter-school debates.",
     category: "Student Life",
-    created_at: "2026-07-10T10:00:00"
+    created_at: "2026-07-10T10:00:00",
+    training_day: "Friday",
+    training_time: "15:00 – 17:00",
+    location: "Library Seminar Room 2A",
+    contact_information: "Ms. Priya Nair — priya_nair@rp.edu.sg",
+    image: "https://www.peicaisec.moe.edu.sg/images/CCA/Debates_Society_2.jpg"
   },
   {
     cca_id: 3,
     cca_name: "Photography Guild",
     description: "Weekly photowalks, gear talks, and portfolio building sessions.",
     category: "Arts",
-    created_at: "2026-07-08T17:30:00"
+    created_at: "2026-07-08T17:30:00",
+    training_day: "Saturday",
+    training_time: "09:00 – 11:00",
+    location: "Media Studio C2-01 / Outdoor locations",
+    contact_information: "Mr. Alex Koh — alex_koh@rp.edu.sg",
+    image: "https://isomer-user-content.by.gov.sg/397/ff2522db-c11d-46f9-bb1e-151b5c9e44d2/photo-republic.jpg"
   },
   {
     cca_id: 4,
     cca_name: "Game Dev Collective",
     description: "Collaborate on game jams and share progress on personal game projects.",
     category: "Technology",
-    created_at: "2026-07-05T19:00:00"
+    created_at: "2026-07-05T19:00:00",
+    training_day: "Thursday",
+    training_time: "14:00 – 17:00",
+    location: "Computer Lab A3-07",
+    contact_information: "Mr. Marcus Ong — marcus_ong@rp.edu.sg",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQx8vZMYrMQT56r7gq9F7pZx6qMRvFIqptvvPtLvZ032U4h4AShpkvyrow&s=10"
+  },
+  {
+    cca_id: 5,
+    cca_name: "Music Ensemble",
+    description: "A community for musicians to jam, perform at school events, and improve together.",
+    category: "Arts",
+    created_at: "2026-07-20T09:00:00",
+    training_day: "Monday & Wednesday",
+    training_time: "16:00 – 18:00",
+    location: "Music Room D1-05",
+    contact_information: "Ms. Sarah Lim — sarah_lim@rp.edu.sg",
+    image: "https://www.northvistasec.moe.edu.sg/images/CCA/String%20Ensemble/String_Ensemble_2025_1.jpg"
+  },
+  {
+    cca_id: 6,
+    cca_name: "Community Service Club",
+    description: "Organise volunteer initiatives and make a positive impact in the local community.",
+    category: "Student Life",
+    created_at: "2026-07-18T11:30:00",
+    training_day: "Tuesday",
+    training_time: "15:00 – 16:30",
+    location: "Student Hub E1-02",
+    contact_information: "Mr. Ravi Sundaram — ravi_sundaram@rp.edu.sg",
+    image: "https://www.sp.edu.sg/images/default-source/student-life/student-life-(sd)/ccas/service-learning/sd-wsc-v01.jpg?sfvrsn=f2239b52_1"
+  },
+  {
+    cca_id: 7,
+    cca_name: "Sports & Recreation",
+    description: "Weekly sports activities including football, basketball, and badminton for all skill levels.",
+    category: "Sports",
+    created_at: "2026-07-22T14:00:00",
+    training_day: "Monday & Friday",
+    training_time: "17:00 – 19:00",
+    location: "Sports Complex Field A",
+    contact_information: "Coach Ahmad Faiz — ahmad_faiz@rp.edu.sg",
+    image: "https://www.smu.edu.sg/sites/default/files/inline-images/sports-adventure-lg.jpg"
   }
 ];
 
