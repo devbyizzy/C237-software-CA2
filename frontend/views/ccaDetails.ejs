@@ -12,7 +12,7 @@
 
   <header class="navbar">
     <div class="navbar-left">
-      <button class="hamburger" id="hamburgerBtn" type="button" aria-label="Toggle menu">☰</button>
+      <button class="hamburger" id="hamburgerBtn" aria-label="Toggle menu">☰</button>
       <a href="/" class="logo">🎓 RPConnect</a>
     </div>
 
@@ -22,39 +22,23 @@
     </form>
 
     <div class="navbar-right">
-      <button class="btn btn-primary create-btn" type="button">+ Create</button>
+      <button class="btn btn-primary create-btn">+ Create</button>
 
-      <button class="icon-btn notif-btn" type="button" aria-label="Notifications" title="Notifications">
+      <button class="icon-btn notif-btn" aria-label="Notifications" title="Notifications">
         🔔
         <span class="notif-dot" id="notifDot" hidden></span>
       </button>
 
       <div class="navbar-profile dropdown">
-        <button class="navbar-profile-trigger" id="profileMenuBtn" type="button">
-          <div class="avatar avatar-sm" id="navAvatar">
-            <%= user && user.name
-              ? user.name.charAt(0).toUpperCase()
-              : "U"
-            %>
-          </div>
-          <span class="navbar-username" id="navUsername">
-            <%= user && user.username
-              ? user.username
-              : user && user.name
-                ? user.name
-                : "User"
-            %>
-          </span>
+        <button class="navbar-profile-trigger" id="profileMenuBtn">
+          <div class="avatar avatar-sm" id="navAvatar"></div>
+          <span class="navbar-username" id="navUsername"></span>
           <span class="caret">▾</span>
         </button>
         <div class="dropdown-menu" id="profileMenu">
           <a href="/profile" class="dropdown-item">🙍 My Profile</a>
           <a href="/profile" class="dropdown-item">⚙️ Settings</a>
-          <form action="/logout" method="POST" class="logout-form">
-            <button type="submit" class="dropdown-item logout-item">
-              🚪 Logout
-            </button>
-          </form>
+          <a href="#" class="dropdown-item logout-item">🚪 Logout</a>
         </div>
       </div>
     </div>

@@ -36,14 +36,13 @@ USE c237_001_teamcmi;
 --  PERSON 1 — AUTH / 2FA   !! PLACEHOLDER (Person 1 to confirm)
 -- =====================================================================
 CREATE TABLE users (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    username VARCHAR(30) NOT NULL UNIQUE,
-    email VARCHAR(150) NOT NULL UNIQUE,
+    user_id       INT AUTO_INCREMENT PRIMARY KEY,
+    name          VARCHAR(100) NOT NULL,
+    email         VARCHAR(150) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL DEFAULT 'year1'
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    role          VARCHAR(20)  NOT NULL DEFAULT 'year1',   -- year1/year2/year3/admin
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE login_otps (
     otp_id     INT AUTO_INCREMENT PRIMARY KEY,
