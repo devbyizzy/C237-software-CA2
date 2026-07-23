@@ -15,9 +15,17 @@ const normaliseText = (value) => {
     : "";
 };
 
+/*
+|--------------------------------------------------------------------------
+| Register
+|--------------------------------------------------------------------------
+*/
+
 const register = async (req, res) => {
   try {
-    const name = normaliseText(req.body.name);
+    const name = normaliseText(
+      req.body.name
+    );
 
     const username = normaliseText(
       req.body.username
@@ -63,7 +71,9 @@ const register = async (req, res) => {
       });
     }
 
-    if (!USERNAME_PATTERN.test(username)) {
+    if (
+      !USERNAME_PATTERN.test(username)
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -149,9 +159,11 @@ const register = async (req, res) => {
             username,
             email,
             password_hash,
-            role
+            role,
+            two_factor_enabled,
+            two_factor_secret
           )
-          VALUES (?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
         [
           name,
@@ -159,6 +171,8 @@ const register = async (req, res) => {
           email,
           passwordHash,
           "year1",
+          false,
+          null,
         ]
       );
 
@@ -196,6 +210,22 @@ const register = async (req, res) => {
   }
 };
 
+/*
+|--------------------------------------------------------------------------
+| Login
+|--------------------------------------------------------------------------
+| 2FA is mandatory.
+|
+| First-time user:
+| Password correct -> Redirect to 2FA setup.
+|
+| Existing 2FA user:
+| Password correct -> Redirect to 2FA verification.
+|
+| A normal login session must not be created here.
+|--------------------------------------------------------------------------
+*/
+
 const login = async (req, res) => {
   try {
     const loginId = normaliseText(
@@ -225,7 +255,9 @@ const login = async (req, res) => {
             email,
             password_hash,
             role,
-            created_at
+            created_at,
+            two_factor_enabled,
+            two_factor_secret
           FROM users
           WHERE LOWER(username) = ?
              OR LOWER(email) = ?
@@ -258,19 +290,53 @@ const login = async (req, res) => {
       });
     }
 
+    const userResponse = {
+      userId: user.user_id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+    };
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mandatory first-time 2FA setup
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      !user.two_factor_enabled ||
+      !user.two_factor_secret
+    ) {
+      return res.status(200).json({
+        success: true,
+        requiresTwoFactorSetup: true,
+        requiresTwoFactor: false,
+        message:
+          "You must set up two-factor authentication before continuing.",
+        user: userResponse,
+      });
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Existing user must verify 2FA
+    |--------------------------------------------------------------------------
+    */
+
     return res.status(200).json({
       success: true,
-      message: "Login successful.",
-      user: {
-        userId: user.user_id,
-        name: user.name,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
+      requiresTwoFactorSetup: false,
+      requiresTwoFactor: true,
+      message:
+        "Enter the 6-digit code from your authenticator app.",
+      user: userResponse,
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error(
+      "Login error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -279,6 +345,12 @@ const login = async (req, res) => {
     });
   }
 };
+
+/*
+|--------------------------------------------------------------------------
+| Delete account
+|--------------------------------------------------------------------------
+*/
 
 const deleteAccount = async (
   req,
