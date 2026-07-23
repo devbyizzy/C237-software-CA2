@@ -5,6 +5,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const profileRoutes = require('./routes/profile');
 const studentsRoutes = require('./routes/students');
 const ccaRoutes = require('./routes/ccas');
+const authRoutes = require("./routes/auth");
 
 const pool = require('./utils/db');
 
@@ -23,6 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // API routes
+app.use("/api/auth", authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/students', studentsRoutes);
