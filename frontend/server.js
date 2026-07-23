@@ -1452,6 +1452,77 @@ app.get(
 
 /*
 |--------------------------------------------------------------------------
+| Groups (RP Circles)
+|--------------------------------------------------------------------------
+*/
+
+app.get(
+  "/groups",
+  requireLogin,
+  (req, res) => {
+    return res.render("groups", {
+      user: req.session.user,
+    });
+  }
+);
+
+app.get(
+  "/groups/create",
+  requireLogin,
+  (req, res) => {
+    return res.render(
+      "createGroup",
+      {
+        user: req.session.user,
+      }
+    );
+  }
+);
+
+app.get(
+  "/groups/:id",
+  requireLogin,
+  (req, res) => {
+    return res.render(
+      "groupDetails",
+      {
+        user: req.session.user,
+        groupId: req.params.id,
+      }
+    );
+  }
+);
+
+app.get(
+  "/groups/:id/requests",
+  requireLogin,
+  (req, res) => {
+    return res.render(
+      "groupRequests",
+      {
+        user: req.session.user,
+        groupId: req.params.id,
+      }
+    );
+  }
+);
+
+app.get(
+  "/groups/:id/edit",
+  requireLogin,
+  (req, res) => {
+    return res.render(
+      "editGroup",
+      {
+        user: req.session.user,
+        groupId: req.params.id,
+      }
+    );
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
 | 404
 |--------------------------------------------------------------------------
 */

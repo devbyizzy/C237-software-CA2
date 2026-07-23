@@ -3,10 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RPConnect - CCA Details</title>
+  <title>RPConnect - Join Requests</title>
   <link rel="stylesheet" href="/css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@tabler/icons@latest/tabler-icons.min.js"></script>
-  <script src="/js/ccaTheme.js"></script>
 </head>
 <body>
 
@@ -53,10 +51,10 @@
         <a href="#" class="sidebar-link">
           <span class="sidebar-icon">❓</span> Questions
         </a>
-        <a href="/groups" class="sidebar-link">
+        <a href="/groups" class="sidebar-link active">
           <span class="sidebar-icon">👥</span> Groups
         </a>
-        <a href="/ccas" class="sidebar-link active">
+        <a href="/ccas" class="sidebar-link">
           <span class="sidebar-icon">🎭</span> CCAs
         </a>
         <a href="#" class="sidebar-link">
@@ -75,12 +73,28 @@
     </aside>
 
     <main class="feed">
-      <div id="ccaDetailsRoot"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h1 class="feed-title">Join Requests</h1>
+          <p style="font-size:14px; color:var(--text-muted);" id="requestsSubtitle">Approve or reject students who want to join.</p>
+        </div>
+        <a href="/groups" class="btn btn-outline" id="backToGroupLink">← Back to group</a>
+      </div>
+
+      <section class="feed-section">
+        <p class="results-count" id="resultsCount"></p>
+        <div id="requestsRoot">
+          <p class="mini-meta">Loading requests...</p>
+        </div>
+      </section>
     </main>
   </div>
 
+  <script>
+    window.CURRENT_USER = <%- JSON.stringify(user || null).replace(/</g, '\\u003c') %>;
+  </script>
   <script src="/js/config.js"></script>
   <script src="/js/nav.js"></script>
-  <script src="/js/ccaDetails.js"></script>
+  <script src="/js/groupRequests.js"></script>
 </body>
 </html>

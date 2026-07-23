@@ -9,7 +9,7 @@
 --  and sample data.
 --
 --  !! IMPORTANT — this file RESETS the database every time it runs.
---    The line `DROP DATABASE IF EXISTS c237_001_teamcmi;` wipes any
+--    The line DROP DATABASE IF EXISTS c237_001_teamcmi; wipes any
 --    existing data so the run always succeeds cleanly. To KEEP existing
 --    data, delete that DROP line; the CREATE below is non-destructive.
 --
@@ -18,7 +18,7 @@
 --    Person 2 (Nizamu)    questions, question_replies, helpful_votes
 --    Person 3 (Wee Teck)  ccas
 --    Person 4 (Isaiah)    app-wide SEARCH / SORT / FILTER
---                         -> owns the `search_index` VIEW + search indexes
+--                         -> owns the search_index VIEW + search indexes
 --    Person 5 (Ryan)      student_groups + 3 more    <- PLACEHOLDER, confirm
 --    Person 6 (Justin)    profiles + dashboard (reads every table)
 --
@@ -42,7 +42,7 @@ CREATE TABLE users (
     email         VARCHAR(150) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role          VARCHAR(20)  NOT NULL DEFAULT 'year1',   -- year1/year2/year3/admin
-    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     two_factor_secret VARCHAR(255) NULL
@@ -186,7 +186,7 @@ CREATE TABLE helpful_votes (
 
 -- =====================================================================
 --  PERSON 5 — RP CIRCLES (GROUPS)   !! PLACEHOLDER (Ryan to confirm)
---  NAMING: `student_groups`, NOT `groups` (reserved word in MySQL 8).
+--  NAMING: student_groups, NOT groups (reserved word in MySQL 8).
 -- =====================================================================
 CREATE TABLE student_groups (
     group_id      INT AUTO_INCREMENT PRIMARY KEY,
@@ -301,11 +301,11 @@ CREATE OR REPLACE VIEW search_index AS
 --  SAMPLE DATA  (so every page + search has content on first run)
 --  Delete this section if you want empty tables.
 -- =====================================================================
-INSERT INTO users (name, email, password_hash, role) VALUES
-  ('Nizamu',        'nizamu@myrp.edu.sg', 'dev-not-a-real-hash', 'year2'),  -- 1
-  ('Senior Aisyah', 'aisyah@myrp.edu.sg', 'dev-not-a-real-hash', 'year3'),  -- 2
-  ('Junior Ben',    'ben@myrp.edu.sg',    'dev-not-a-real-hash', 'year1'),  -- 3
-  ('Admin Rahim',   'rahim@myrp.edu.sg',  'dev-not-a-real-hash', 'admin');  -- 4
+INSERT INTO users (name, username, email, password_hash, role) VALUES
+('Nizamu', 'nizamu', 'nizamu@myrp.edu.sg', 'dev-not-a-real-hash', 'year2'),
+('Senior Aisyah', 'aisyah', 'aisyah@myrp.edu.sg', 'dev-not-a-real-hash', 'year3'),
+('Junior Ben', 'ben', 'ben@myrp.edu.sg', 'dev-not-a-real-hash', 'year1'),
+('Admin Rahim', 'rahim', 'rahim@myrp.edu.sg', 'dev-not-a-real-hash', 'admin');
 
 INSERT INTO profiles (user_id, display_name, bio, diploma, year_of_study, semester, class_code, interests) VALUES
   (1, 'Nizamu', 'DIT student, likes robotics.', 'Information Technology', 2, 1, 'E36A', 'robotics, gaming'),
@@ -392,7 +392,7 @@ INSERT INTO group_replies (group_post_id, user_id, content) VALUES
 --  CHANGELOG / NOTES
 -- =====================================================================
 --  ADDED THIS RUN (Person 4 = search/sort/filter across all features):
---    - `search_index` VIEW: merges questions, ccas, student_groups and
+--    - search_index VIEW: merges questions, ccas, student_groups and
 --      (searchable) profiles into one surface -> one query searches,
 --      filters and sorts across every feature.
 --    - FULLTEXT index on student_groups (questions + ccas already had one).
@@ -408,7 +408,7 @@ INSERT INTO group_replies (group_post_id, user_id, content) VALUES
 --    has CRUD to demo. Confirm against your rubric.
 --
 --  CARRIED OVER: users/login_otps defined; run order correct; Q&A reply +
---    vote tables; student_groups (not reserved `groups`); InnoDB+utf8mb4;
+--    vote tables; student_groups (not reserved groups); InnoDB+utf8mb4;
 --    DROP+CREATE + seed so it runs with zero manual steps.
 --
 --  STILL TEAM-OWNED: users/login_otps (Person 1) and group tables (Ryan)
