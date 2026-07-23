@@ -528,6 +528,309 @@ app.post(
 
 /*
 |--------------------------------------------------------------------------
+| Forgot password
+|--------------------------------------------------------------------------
+*/
+
+app.get("/forgot-password", (req, res) => {
+  if (req.session.user) {
+    return res.redirect("/dashboard");
+  }
+
+  return res.render("auth/forgot-password", {
+    error: null,
+    success: null,
+    resetLink: null,
+    formData: {},
+  });
+});
+
+app.post("/forgot-password", async (req, res) => {
+  const email =
+    typeof req.body.email === "string"
+      ? req.body.email.trim().toLowerCase()
+      : "";
+
+  if (!email) {
+    return res.status(400).render(
+      "auth/forgot-password",
+      {
+        error: "Please enter your RP email.",
+        success: null,
+        resetLink: null,
+        formData: {
+          email,
+        },
+      }
+    );
+  }
+
+  try {
+    const result = await requestBackend(
+      "/api/auth/forgot-password",
+      "POST",
+      {
+        email,
+      }
+    );
+
+    if (!result.data || !result.data.success) {
+      return res.status(result.status).render(
+        "auth/forgot-password",
+        {
+          error:
+            result.data?.message ||
+            "Unable to process the password reset request.",
+          success: null,
+          resetLink: null,
+          formData: {
+            email,
+          },
+        }
+      );
+    }
+
+    return res.render("auth/forgot-password", {
+      error: null,
+      success: result.data.message,
+      resetLink: result.data.resetLink || null,
+      formData: {
+        email,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Frontend forgot-password error:",
+      error
+    );
+
+    return res.status(503).render(
+      "auth/forgot-password",
+      {
+        error:
+          "The authentication server is unavailable.",
+        success: null,
+        resetLink: null,
+        formData: {
+          email,
+        },
+      }
+    );
+  }
+});
+
+/*
+|--------------------------------------------------------------------------
+| Reset password
+|--------------------------------------------------------------------------
+*/
+
+app.get(
+  "/reset-password",
+  async (req, res) => {
+    if (req.session.user) {
+      return res.redirect("/dashboard");
+    }
+
+    const token =
+      typeof req.query.token === "string"
+        ? req.query.token.trim()
+        : "";
+
+    if (!token) {
+      return res.status(400).render(
+        "auth/reset-password",
+        {
+          error:
+            "The password reset token is missing.",
+          success: null,
+          token: "",
+          tokenValid: false,
+        }
+      );
+    }
+
+    try {
+      const result = await requestBackend(
+        `/api/auth/reset-password/${encodeURIComponent(
+          token
+        )}`,
+        "GET"
+      );
+
+      if (
+        !result.data ||
+        !result.data.success
+      ) {
+        return res.status(result.status).render(
+          "auth/reset-password",
+          {
+            error:
+              result.data?.message ||
+              "This password reset link is invalid or has expired.",
+            success: null,
+            token: "",
+            tokenValid: false,
+          }
+        );
+      }
+
+      return res.render(
+        "auth/reset-password",
+        {
+          error: null,
+          success: null,
+          token,
+          tokenValid: true,
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Frontend reset-token verification error:",
+        error
+      );
+
+      return res.status(503).render(
+        "auth/reset-password",
+        {
+          error:
+            "The authentication server is unavailable.",
+          success: null,
+          token: "",
+          tokenValid: false,
+        }
+      );
+    }
+  }
+);
+
+app.post(
+  "/reset-password",
+  async (req, res) => {
+    if (req.session.user) {
+      return res.redirect("/dashboard");
+    }
+
+    const token =
+      typeof req.body.token === "string"
+        ? req.body.token.trim()
+        : "";
+
+    const password =
+      typeof req.body.password === "string"
+        ? req.body.password
+        : "";
+
+    const confirmPassword =
+      typeof req.body.confirmPassword ===
+      "string"
+        ? req.body.confirmPassword
+        : "";
+
+    if (
+      !token ||
+      !password ||
+      !confirmPassword
+    ) {
+      return res.status(400).render(
+        "auth/reset-password",
+        {
+          error:
+            "Please complete all required fields.",
+          success: null,
+          token,
+          tokenValid: Boolean(token),
+        }
+      );
+    }
+
+    const passwordIsValid =
+      password.length >= 8 &&
+      /[A-Z]/.test(password) &&
+      /[a-z]/.test(password) &&
+      /[0-9]/.test(password);
+
+    if (!passwordIsValid) {
+      return res.status(400).render(
+        "auth/reset-password",
+        {
+          error:
+            "Password must contain at least 8 characters, one uppercase letter, one lowercase letter and one number.",
+          success: null,
+          token,
+          tokenValid: true,
+        }
+      );
+    }
+
+    if (
+      password !== confirmPassword
+    ) {
+      return res.status(400).render(
+        "auth/reset-password",
+        {
+          error:
+            "The passwords do not match.",
+          success: null,
+          token,
+          tokenValid: true,
+        }
+      );
+    }
+
+    try {
+      const result = await requestBackend(
+        "/api/auth/reset-password",
+        "POST",
+        {
+          token,
+          password,
+          confirmPassword,
+        }
+      );
+
+      if (
+        !result.data ||
+        !result.data.success
+      ) {
+        return res.status(result.status).render(
+          "auth/reset-password",
+          {
+            error:
+              result.data?.message ||
+              "Unable to reset your password.",
+            success: null,
+            token,
+            tokenValid: true,
+          }
+        );
+      }
+
+      return res.redirect(
+        "/login?passwordReset=true"
+      );
+    } catch (error) {
+      console.error(
+        "Frontend reset-password error:",
+        error
+      );
+
+      return res.status(503).render(
+        "auth/reset-password",
+        {
+          error:
+            "The authentication server is unavailable.",
+          success: null,
+          token,
+          tokenValid: true,
+        }
+      );
+    }
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
 | Dashboard
 |--------------------------------------------------------------------------
 */
