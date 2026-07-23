@@ -5,6 +5,8 @@ const dashboardRoutes = require('./routes/dashboard');
 const profileRoutes = require('./routes/profile');
 const studentsRoutes = require('./routes/students');
 const ccaRoutes = require('./routes/ccas');
+const groupRoutes = require('./routes/groups');
+const groupPostRoutes = require('./routes/groupPosts');
 const authRoutes = require("./routes/auth");
 const passwordResetRoutes = require("./routes/passwordReset")
 const twoFactorRoutes = require("./routes/twoFactor");
@@ -31,6 +33,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/students', studentsRoutes);
 app.use('/api/ccas', ccaRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/group-posts', groupPostRoutes);
 app.use("/api/auth", passwordResetRoutes);
 app.use("/api/auth/2fa",twoFactorRoutes);
 
@@ -43,7 +47,22 @@ app.get("/", (req, res) => {
       'PUT  /api/profile',
       'GET  /api/profile/:id',
       'GET  /api/students?diploma=&class_code=&interest=',
-      'GET  /api/ccas?search=&category='
+      'GET  /api/ccas?search=&category=',
+      'GET  /api/groups?search=&type=&diploma=&class_code=&sort=&mine=&user_id=',
+      'GET  /api/groups/dashboard?user_id=',
+      'GET  /api/groups/:id',
+      'GET  /api/groups/:id/members',
+      'GET  /api/groups/:id/posts',
+      'GET  /api/groups/:id/requests?user_id=',
+      'POST /api/groups',
+      'POST /api/groups/:id/edit',
+      'POST /api/groups/:id/delete',
+      'POST /api/groups/:id/join',
+      'POST /api/groups/:id/leave',
+      'POST /api/groups/:id/requests/:userId/accept',
+      'POST /api/groups/:id/requests/:userId/reject',
+      'POST /api/groups/:id/posts',
+      'POST /api/group-posts/:id/replies'
     ]
   });
 });
