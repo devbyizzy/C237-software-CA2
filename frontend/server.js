@@ -218,34 +218,97 @@ app.post(
           });
       }
 
-      req.session.user =
-        result.data.user;
+    /*
+|--------------------------------------------------------------------------
+| Mandatory 2FA Setup
+|--------------------------------------------------------------------------
+*/
 
-      return req.session.save(
-        (error) => {
-          if (error) {
-            console.error(
-              "Session save error:",
-              error
-            );
+if (result.data.requiresTwoFactorSetup) {
+  req.session.pendingUser =
+    result.data.user;
 
-            return res
-              .status(500)
-              .render("auth/login", {
-                error:
-                  "Login succeeded, but the session could not be created.",
-                success: null,
-                formData: {
-                  loginId,
-                },
-              });
-          }
+  return req.session.save(
+    (error) => {
+      if (error) {
+        console.error(
+          "Session save error:",
+          error
+        );
 
-          return res.redirect(
-            "/dashboard"
-          );
-        }
+        return res
+          .status(500)
+          .render("auth/login", {
+            error:
+              "Unable to start 2FA setup.",
+            success: null,
+            formData: {
+              loginId,
+            },
+          });
+      }
+
+      return res.redirect(
+        "/setup-2fa"
       );
+    }
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Existing user must verify 2FA
+|--------------------------------------------------------------------------
+*/
+
+if (result.data.requiresTwoFactor) {
+  req.session.pendingUser =
+    result.data.user;
+
+  return req.session.save(
+    (error) => {
+      if (error) {
+        console.error(
+          "Session save error:",
+          error
+        );
+
+        return res
+          .status(500)
+          .render("auth/login", {
+            error:
+              "Unable to start 2FA verification.",
+            success: null,
+            formData: {
+              loginId,
+            },
+          });
+      }
+
+      return res.redirect(
+        "/verify-2fa"
+      );
+    }
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Safety fallback
+|--------------------------------------------------------------------------
+*/
+
+return res
+  .status(500)
+  .render("auth/login", {
+    error:
+      "Invalid authentication response.",
+    success: null,
+    formData: {
+      loginId,
+    },
+  });
+
     } catch (error) {
       console.error(
         "Frontend login request error:",
@@ -828,6 +891,456 @@ app.post(
     }
   }
 );
+
+/*
+|--------------------------------------------------------------------------
+| Mandatory 2FA Setup
+|--------------------------------------------------------------------------
+*/
+
+app.get(
+  "/setup-2fa",
+  async (req, res) => {
+    if (req.session.user) {
+      return res.redirect("/dashboard");
+    }
+
+    if (!req.session.pendingUser) {
+      return res.redirect("/login");
+    }
+
+    try {
+      /*
+      |--------------------------------------------------------------------------
+      | Reuse the same temporary secret when refreshing the page
+      |--------------------------------------------------------------------------
+      */
+
+      if (
+        req.session.pendingTwoFactorSecret &&
+        req.session.pendingTwoFactorQrCode
+      ) {
+        return res.render(
+          "auth/setup-2fa",
+          {
+            error: null,
+            user:
+              req.session.pendingUser,
+            secret:
+              req.session
+                .pendingTwoFactorSecret,
+            qrCodeDataUrl:
+              req.session
+                .pendingTwoFactorQrCode,
+          }
+        );
+      }
+
+      const result =
+        await requestBackend(
+          "/api/auth/2fa/setup",
+          "POST",
+          {
+            userId:
+              req.session.pendingUser
+                .userId,
+          }
+        );
+
+      if (
+        !result.data ||
+        !result.data.success
+      ) {
+        return res
+          .status(result.status)
+          .render(
+            "auth/setup-2fa",
+            {
+              error:
+                result.data?.message ||
+                "Unable to create the 2FA setup.",
+              user:
+                req.session.pendingUser,
+              secret: null,
+              qrCodeDataUrl: null,
+            }
+          );
+      }
+
+      req.session
+        .pendingTwoFactorSecret =
+        result.data.secret;
+
+      req.session
+        .pendingTwoFactorQrCode =
+        result.data.qrCodeDataUrl;
+
+      return req.session.save(
+        (error) => {
+          if (error) {
+            console.error(
+              "2FA setup session error:",
+              error
+            );
+
+            return res
+              .status(500)
+              .render(
+                "auth/setup-2fa",
+                {
+                  error:
+                    "Unable to save the 2FA setup.",
+                  user:
+                    req.session
+                      .pendingUser,
+                  secret: null,
+                  qrCodeDataUrl:
+                    null,
+                }
+              );
+          }
+
+          return res.render(
+            "auth/setup-2fa",
+            {
+              error: null,
+              user:
+                req.session.pendingUser,
+              secret:
+                result.data.secret,
+              qrCodeDataUrl:
+                result.data
+                  .qrCodeDataUrl,
+            }
+          );
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Frontend 2FA setup error:",
+        error
+      );
+
+      return res
+        .status(503)
+        .render("auth/setup-2fa", {
+          error:
+            "The authentication server is unavailable.",
+          user:
+            req.session.pendingUser,
+          secret: null,
+          qrCodeDataUrl: null,
+        });
+    }
+  }
+);
+
+app.post(
+  "/setup-2fa",
+  async (req, res) => {
+    if (req.session.user) {
+      return res.redirect("/dashboard");
+    }
+
+    if (
+      !req.session.pendingUser ||
+      !req.session
+        .pendingTwoFactorSecret
+    ) {
+      return res.redirect("/login");
+    }
+
+    const code =
+      typeof req.body.code === "string"
+        ? req.body.code
+            .replace(/\s+/g, "")
+            .trim()
+        : "";
+
+    if (!/^\d{6}$/.test(code)) {
+      return res
+        .status(400)
+        .render("auth/setup-2fa", {
+          error:
+            "Enter the 6-digit code from your authenticator app.",
+          user:
+            req.session.pendingUser,
+          secret:
+            req.session
+              .pendingTwoFactorSecret,
+          qrCodeDataUrl:
+            req.session
+              .pendingTwoFactorQrCode,
+        });
+    }
+
+    try {
+      const result =
+        await requestBackend(
+          "/api/auth/2fa/enable",
+          "POST",
+          {
+            userId:
+              req.session.pendingUser
+                .userId,
+
+            secret:
+              req.session
+                .pendingTwoFactorSecret,
+
+            code,
+          }
+        );
+
+      if (
+        !result.data ||
+        !result.data.success
+      ) {
+        return res
+          .status(result.status)
+          .render(
+            "auth/setup-2fa",
+            {
+              error:
+                result.data?.message ||
+                "The verification code is invalid.",
+              user:
+                req.session.pendingUser,
+              secret:
+                req.session
+                  .pendingTwoFactorSecret,
+              qrCodeDataUrl:
+                req.session
+                  .pendingTwoFactorQrCode,
+            }
+          );
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | 2FA setup completed — create the real login session
+      |--------------------------------------------------------------------------
+      */
+
+      req.session.user =
+        req.session.pendingUser;
+
+      delete req.session.pendingUser;
+      delete req.session
+        .pendingTwoFactorSecret;
+      delete req.session
+        .pendingTwoFactorQrCode;
+
+      return req.session.save(
+        (error) => {
+          if (error) {
+            console.error(
+              "2FA completion session error:",
+              error
+            );
+
+            return res
+              .status(500)
+              .send(
+                "2FA was enabled, but the login session could not be created."
+              );
+          }
+
+          return res.redirect(
+            "/dashboard"
+          );
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Frontend enable 2FA error:",
+        error
+      );
+
+      return res
+        .status(503)
+        .render("auth/setup-2fa", {
+          error:
+            "The authentication server is unavailable.",
+          user:
+            req.session.pendingUser,
+          secret:
+            req.session
+              .pendingTwoFactorSecret,
+          qrCodeDataUrl:
+            req.session
+              .pendingTwoFactorQrCode,
+        });
+    }
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Verify 2FA During Login
+|--------------------------------------------------------------------------
+*/
+
+app.get(
+  "/verify-2fa",
+  (req, res) => {
+    if (req.session.user) {
+      return res.redirect("/dashboard");
+    }
+
+    if (!req.session.pendingUser) {
+      return res.redirect("/login");
+    }
+
+    return res.render(
+      "auth/verify-2fa",
+      {
+        error: null,
+        user:
+          req.session.pendingUser,
+      }
+    );
+  }
+);
+
+app.post(
+  "/verify-2fa",
+  async (req, res) => {
+    if (req.session.user) {
+      return res.redirect("/dashboard");
+    }
+
+    if (!req.session.pendingUser) {
+      return res.redirect("/login");
+    }
+
+    const code =
+      typeof req.body.code === "string"
+        ? req.body.code
+            .replace(/\s+/g, "")
+            .trim()
+        : "";
+
+    if (!/^\d{6}$/.test(code)) {
+      return res
+        .status(400)
+        .render(
+          "auth/verify-2fa",
+          {
+            error:
+              "Enter the 6-digit code from your authenticator app.",
+            user:
+              req.session.pendingUser,
+          }
+        );
+    }
+
+    try {
+      const result =
+        await requestBackend(
+          "/api/auth/2fa/verify-login",
+          "POST",
+          {
+            userId:
+              req.session.pendingUser
+                .userId,
+            code,
+          }
+        );
+
+      if (
+        !result.data ||
+        !result.data.success
+      ) {
+        return res
+          .status(result.status)
+          .render(
+            "auth/verify-2fa",
+            {
+              error:
+                result.data?.message ||
+                "The verification code is invalid or has expired.",
+              user:
+                req.session.pendingUser,
+            }
+          );
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | Verification successful — create real login session
+      |--------------------------------------------------------------------------
+      */
+
+      req.session.user =
+        result.data.user;
+
+      delete req.session.pendingUser;
+      delete req.session
+        .pendingTwoFactorSecret;
+      delete req.session
+        .pendingTwoFactorQrCode;
+
+      return req.session.save(
+        (error) => {
+          if (error) {
+            console.error(
+              "2FA verification session error:",
+              error
+            );
+
+            return res
+              .status(500)
+              .render(
+                "auth/verify-2fa",
+                {
+                  error:
+                    "The code was verified, but the login session could not be created.",
+                  user:
+                    result.data.user,
+                }
+              );
+          }
+
+          return res.redirect(
+            "/dashboard"
+          );
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Frontend 2FA verification error:",
+        error
+      );
+
+      return res
+        .status(503)
+        .render(
+          "auth/verify-2fa",
+          {
+            error:
+              "The authentication server is unavailable.",
+            user:
+              req.session.pendingUser,
+          }
+        );
+    }
+  }
+);
+
+app.post("/cancel-2fa", (req, res) => {
+  delete req.session.pendingUser;
+  delete req.session.pendingTwoFactorSecret;
+  delete req.session.pendingTwoFactorQrCode;
+
+  req.session.save((error) => {
+    if (error) {
+      console.error("Cancel 2FA session error:", error);
+    }
+
+    return res.redirect("/login");
+  });
+});
 
 /*
 |--------------------------------------------------------------------------

@@ -7,6 +7,7 @@ const studentsRoutes = require('./routes/students');
 const ccaRoutes = require('./routes/ccas');
 const authRoutes = require("./routes/auth");
 const passwordResetRoutes = require("./routes/passwordReset")
+const twoFactorRoutes = require("./routes/twoFactor");
 
 const pool = require('./utils/db');
 
@@ -31,6 +32,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/students', studentsRoutes);
 app.use('/api/ccas', ccaRoutes);
 app.use("/api/auth", passwordResetRoutes);
+app.use("/api/auth/2fa",twoFactorRoutes);
 
 app.get("/", (req, res) => {
   res.json({
