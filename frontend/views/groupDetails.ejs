@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPConnect - Group Details</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="navbar-left">
+      <button class="hamburger" id="hamburgerBtn" aria-label="Toggle menu">☰</button>
+      <a href="/" class="logo">🎓 RPConnect</a>
+    </div>
+
+    <form class="navbar-search" action="#" method="GET" onsubmit="return false;">
+      <span class="search-icon">🔍</span>
+      <input type="text" name="q" placeholder="Search students, questions, groups..." />
+    </form>
+
+    <div class="navbar-right">
+      <button class="btn btn-primary create-btn">+ Create</button>
+
+      <button class="icon-btn notif-btn" aria-label="Notifications" title="Notifications">
+        🔔
+        <span class="notif-dot" id="notifDot" hidden></span>
+      </button>
+
+      <div class="navbar-profile dropdown">
+        <button class="navbar-profile-trigger" id="profileMenuBtn">
+          <div class="avatar avatar-sm" id="navAvatar"></div>
+          <span class="navbar-username" id="navUsername"></span>
+          <span class="caret">▾</span>
+        </button>
+        <div class="dropdown-menu" id="profileMenu">
+          <a href="/profile" class="dropdown-item">🙍 My Profile</a>
+          <a href="/profile" class="dropdown-item">⚙️ Settings</a>
+          <a href="#" class="dropdown-item logout-item">🚪 Logout</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <a href="/" class="sidebar-link">
+          <span class="sidebar-icon">🏠</span> Home
+        </a>
+        <a href="/groups" class="sidebar-link active">
+          <span class="sidebar-icon">👥</span> Groups
+        </a>
+        <a href="/interest-groups" class="sidebar-link">
+          <span class="sidebar-icon">✨</span> Interest Groups
+        </a>
+        <a href="/forum" class="sidebar-link">
+          <span class="sidebar-icon">💬</span> Forum
+        </a>
+        <a href="/ccas" class="sidebar-link">
+          <span class="sidebar-icon">🎭</span> CCAs
+        </a>
+        <a href="/students" class="sidebar-link">
+          <span class="sidebar-icon">🔎</span> Student Finder
+        </a>
+        <a href="/groups?mine=1" class="sidebar-link">
+          <span class="sidebar-icon">📌</span> My Groups
+        </a>
+        <a href="/profile" class="sidebar-link">
+          <span class="sidebar-icon">🙍</span> My Profile
+        </a>
+      </nav>
+    </aside>
+
+    <main class="feed">
+      <div id="groupHeaderRoot">
+        <p class="mini-meta">Loading group...</p>
+      </div>
+
+      <section class="feed-section" id="groupPostsSection" style="display:none;">
+        <div class="feed-section-header">
+          <h2>💬 Group Posts</h2>
+        </div>
+        <div class="card" id="newPostCard" style="display:none;">
+          <form id="newPostForm">
+            <div id="postError" class="form-error" style="display:none;"></div>
+            <div class="form-group" style="margin-bottom:10px;">
+              <textarea class="form-textarea" id="newPostContent" rows="2" placeholder="Share something with the group..." required></textarea>
+            </div>
+            <div class="form-actions" style="margin-top:0;">
+              <button type="submit" class="btn btn-primary">Post</button>
+            </div>
+          </form>
+        </div>
+        <div id="groupPostsRoot"></div>
+      </section>
+    </main>
+
+    <aside class="right-panel">
+      <section class="panel-section">
+        <h2>👥 Members</h2>
+        <div id="groupMembersContent"><p class="mini-meta">Loading...</p></div>
+      </section>
+
+      <section class="panel-section" id="groupInfoPanel">
+        <h2>ℹ️ Group Info</h2>
+        <div id="groupInfoContent"><p class="mini-meta">Loading...</p></div>
+      </section>
+    </aside>
+  </div>
+
+  <script>
+    window.CURRENT_USER = <%- JSON.stringify(user || null).replace(/</g, '\\u003c') %>;
+  </script>
+  <script src="/js/config.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/groupDetails.js"></script>
+</body>
+</html>

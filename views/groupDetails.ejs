@@ -1,0 +1,132 @@
+<%# groupDetails.ejs - one group's page. Data from GET /groups/:id:
+    group, members, posts (each with .replies), pendingRequests,
+    myMembership, isMember, isOwner %>
+<%- include('partials/header', { title: group.group_name }) %>
+
+<%# ---------- Group info ---------- %>
+<section class="group-header">
+    <h2><%= group.group_name %></h2>
+    <p class="meta">
+        <span class="tag"><%= group.group_type %> Group</span>
+        <span class="tag"><%= group.privacy %></span>
+        <span class="tag"><%= members.length %> / <%= group.maximum_members %> members</span>
+    </p>
+    <p><%= group.description %></p>
+
+    <%# Only render the detail rows that actually have data %>
+    <dl class="group-facts">
+        <% if (group.diploma) { %><dt>Diploma</dt><dd><%= group.diploma %></dd><% } %>
+        <% if (group.class_code) { %><dt>Class</dt><dd><%= group.class_code %></dd><% } %>
+        <% if (group.module_code) { %><dt>Module</dt><dd><%= group.module_code %></dd><% } %>
+        <% if (group.year_of_study) { %><dt>Year</dt><dd><%= group.year_of_study %></dd><% } %>
+        <% if (group.semester) { %><dt>Semester</dt><dd><%= group.semester %></dd><% } %>
+        <dt>Created by</dt><dd><%= group.creator_name %></dd>
+    </dl>
+
+    <%# ---------- Join / leave / owner buttons depend on the viewer's membership ---------- %>
+    <div class="actions">
+        <% if (isOwner) { %>
+            <a class="button" href="/groups/<%= group.group_id %>/edit">Edit Group</a>
+            <form method="POST" action="/groups/<%= group.group_id %>/delete"
+                  onsubmit="return confirm('Delete this group and all its posts?')">
+                <button type="submit" class="danger">Delete Group</button>
+            </form>
+        <% } else if (isMember) { %>
+            <form method="POST" action="/groups/<%= group.group_id %>/leave">
+                <button type="submit">Leave Group</button>
+            </form>
+        <% } else if (myMembership && myMembership.join_status === 'pending') { %>
+            <p class="notice">Your join request is pending the owner's approval.</p>
+        <% } else { %>
+            <form method="POST" action="/groups/<%= group.group_id %>/join">
+                <button type="submit">
+                    <%= group.privacy === 'public' ? 'Join Group' : 'Request to Join' %>
+                </button>
+            </form>
+        <% } %>
+    </div>
+</section>
+
+<%# ---------- Pending requests: only sent by the server to owners/moderators ---------- %>
+<% if (pendingRequests.length > 0) { %>
+    <section aria-label="Pending join requests">
+        <h3>Pending Join Requests</h3>
+        <ul class="request-list">
+            <% pendingRequests.forEach(request => { %>
+                <li>
+                    <span><%= request.name %> (<%= request.diploma || 'No diploma listed' %>)</span>
+                    <form method="POST"
+                          action="/groups/<%= group.group_id %>/requests/<%= request.user_id %>/accept">
+                        <button type="submit">Accept</button>
+                    </form>
+                    <form method="POST"
+                          action="/groups/<%= group.group_id %>/requests/<%= request.user_id %>/reject">
+                        <button type="submit" class="danger">Reject</button>
+                    </form>
+                </li>
+            <% }) %>
+        </ul>
+    </section>
+<% } %>
+
+<%# ---------- Member list ---------- %>
+<section aria-label="Group members">
+    <h3>Members (<%= members.length %>)</h3>
+    <ul class="member-list">
+        <% members.forEach(member => { %>
+            <li>
+                <%= member.name %>
+                <% if (member.member_role !== 'member') { %>
+                    <span class="tag"><%= member.member_role %></span>
+                <% } %>
+            </li>
+        <% }) %>
+    </ul>
+</section>
+
+<%# ---------- Discussion board (posts + replies) ---------- %>
+<section aria-label="Group discussion">
+    <h3>Discussion Board</h3>
+
+    <% if (isMember) { %>
+        <%# CREATE post -> POST /groups/:id/posts %>
+        <form method="POST" action="/groups/<%= group.group_id %>/posts" class="stacked-form">
+            <label for="content">New post</label>
+            <textarea id="content" name="content" rows="2" required
+                      placeholder="e.g. Anyone wants to have lunch after C237 tomorrow?"></textarea>
+            <button type="submit">Post</button>
+        </form>
+    <% } else { %>
+        <p class="notice">Join the group to take part in the discussion.</p>
+    <% } %>
+
+    <% if (posts.length === 0) { %>
+        <p>No posts yet. Start the conversation!</p>
+    <% } %>
+
+    <% posts.forEach(post => { %>
+        <article class="post">
+            <p><%= post.content %></p>
+            <p class="meta">by <%= post.author_name %> on <%= post.created_at.toLocaleString() %></p>
+
+            <%# Replies belonging to this post (attached in the route) %>
+            <% post.replies.forEach(reply => { %>
+                <article class="reply">
+                    <p><%= reply.content %></p>
+                    <p class="meta">by <%= reply.author_name %> on <%= reply.created_at.toLocaleString() %></p>
+                </article>
+            <% }) %>
+
+            <% if (isMember) { %>
+                <%# CREATE reply -> POST /group-posts/:postId/replies %>
+                <form method="POST" action="/group-posts/<%= post.group_post_id %>/replies"
+                      class="reply-form">
+                    <input type="text" name="content" required placeholder="Write a reply...">
+                    <button type="submit">Reply</button>
+                </form>
+            <% } %>
+        </article>
+    <% }) %>
+</section>
+
+<%- include('partials/footer') %>
