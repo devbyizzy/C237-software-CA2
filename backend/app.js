@@ -7,6 +7,7 @@ const studentsRoutes = require('./routes/students');
 const ccaRoutes = require('./routes/ccas');
 const groupRoutes = require('./routes/groups');
 const groupPostRoutes = require('./routes/groupPosts');
+const interestGroupRoutes = require('./routes/interestGroups');
 const authRoutes = require("./routes/auth");
 const passwordResetRoutes = require("./routes/passwordReset")
 const twoFactorRoutes = require("./routes/twoFactor");
@@ -18,7 +19,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+      if (!origin || origin === "http://localhost:5173" || origin.endsWith(".app.github.dev")) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type"],
   })
@@ -35,6 +41,7 @@ app.use('/api/students', studentsRoutes);
 app.use('/api/ccas', ccaRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/group-posts', groupPostRoutes);
+app.use('/api/interest-groups', interestGroupRoutes);
 app.use("/api/auth", passwordResetRoutes);
 app.use("/api/auth/2fa",twoFactorRoutes);
 
