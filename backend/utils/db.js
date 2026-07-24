@@ -5,7 +5,8 @@ const pool = mysql.createPool({
   user: 'c237_001',
   password: 'c237001@2026!',
   database: 'c237_001_teamcmi',
-  ssl: { rejectUnauthorized: true }
+  ssl: { rejectUnauthorized: true },
+  connectTimeout: 10000
 });
 
 module.exports = pool;
