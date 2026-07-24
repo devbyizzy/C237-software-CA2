@@ -48,11 +48,6 @@ async function loadDashboard() {
 function renderDashboard(data) {
   document.title = `RPConnect${data.pageTitle ? ' - ' + data.pageTitle : ''}`;
 
-  const feedTitle = document.getElementById('feedTitle');
-  if (feedTitle && data.currentProfile) {
-    feedTitle.textContent = `Welcome back, ${data.currentProfile.display_name} 👋`;
-  }
-
   const notifDot = document.getElementById('notifDot');
   if (notifDot) {
     if (data.notifCount > 0) {

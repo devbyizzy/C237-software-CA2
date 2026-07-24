@@ -163,17 +163,6 @@
         </a>
 
         <a
-          href="#"
-          class="sidebar-link"
-        >
-          <span class="sidebar-icon">
-            ❓
-          </span>
-
-          Questions
-        </a>
-
-        <a
           href="/groups"
           class="sidebar-link"
         >
@@ -185,17 +174,6 @@
         </a>
         <a href="/ccas" class="sidebar-link">
           <span class="sidebar-icon">🎭</span> CCAs
-        </a>
-
-        <a
-          href="#"
-          class="sidebar-link"
-        >
-          <span class="sidebar-icon">
-            🗓️
-          </span>
-
-          Timetables
         </a>
 
         <a
@@ -352,6 +330,9 @@
     </aside>
   </div>
 
+  <script>
+    window.CURRENT_USER_ID = <%= user && user.userId ? user.userId : 'null' %>;
+  </script>
   <script src="/js/config.js"></script>
   <script src="/js/nav.js"></script>
   <script src="/js/main.js"></script>

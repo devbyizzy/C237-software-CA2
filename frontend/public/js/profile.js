@@ -5,16 +5,18 @@ document.addEventListener('DOMContentLoaded', function () {
 function getViewedUserId() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
-  return id ? parseInt(id, 10) : null;
+  if (id) return parseInt(id, 10);
+  return window.CURRENT_USER_ID || null;
 }
 
 async function loadProfile() {
   const root = document.getElementById('profileRoot');
   const viewedId = getViewedUserId();
-  const endpoint = viewedId
-    ? `${window.API_BASE_URL}/api/profile/${viewedId}`
-    : `${window.API_BASE_URL}/api/profile`;
-
+  if (!viewedId) {
+    root.innerHTML = `<div class="card"><p class="card-content">You need to be logged in to view this page.</p></div>`;
+    return;
+  }
+  const endpoint = `${window.API_BASE_URL}/api/profile/${viewedId}?viewerId=${window.CURRENT_USER_ID || ''}`;
   try {
     const res = await fetch(endpoint);
     if (!res.ok) {
@@ -46,18 +48,13 @@ function renderProfileView(root, data) {
 
   root.innerHTML = `
     <section class="feed-section">
-      <div class="card profile-header">
-        <div class="avatar avatar-lg">${escapeHtml(data.display_name.charAt(0).toUpperCase())}</div>
-        <div class="profile-header-info">
-          <p class="profile-name">${escapeHtml(data.display_name)}</p>
-          <p class="profile-subtext">${escapeHtml(data.full_name)} · ${escapeHtml(data.email)}</p>
-          <div class="profile-meta-badges">
-            <span class="badge">${escapeHtml(data.diploma)}</span>
-            <span class="badge">${escapeHtml(data.class_code)}</span>
-            <span class="badge">Year ${data.year_of_study}</span>
-          </div>
+      <div class="card">
+        <div class="profile-meta-badges">
+          <span class="badge">${data.diploma ? escapeHtml(data.diploma) : 'Diploma not set'}</span>
+          <span class="badge">${data.class_code ? escapeHtml(data.class_code) : 'Class not set'}</span>
+          <span class="badge">${data.year_of_study ? 'Year ' + data.year_of_study : 'Year not set'}</span>
         </div>
-        ${data.isOwnProfile ? `<button class="btn btn-primary" id="editProfileBtn">Edit Profile</button>` : ''}
+        ${data.isOwnProfile ? `<button class="btn btn-primary" id="editProfileBtn" style="margin-top:12px;">Edit Profile</button>` : ''}
       </div>
     </section>
 
@@ -84,9 +81,6 @@ function renderProfileView(root, data) {
           <article class="card group-card">
             <h3 class="card-title">${escapeHtml(g.group_name)}</h3>
             <p class="card-content">${escapeHtml(g.description)}</p>
-            <div class="card-footer">
-              <span class="card-author">${g.member_count} members</span>
-            </div>
           </article>`).join('')
         : `<div class="card"><p class="empty-state">Not part of any groups yet.</p></div>`}
     </section>
@@ -103,9 +97,6 @@ function renderProfileView(root, data) {
             </div>
             <h3 class="card-title">${escapeHtml(q.title)}</h3>
             <p class="card-content">${escapeHtml(q.content)}</p>
-            <div class="card-footer">
-              <span class="card-author">${q.upvotes} upvotes · ${q.comments} comments</span>
-            </div>
           </article>`).join('')
         : `<div class="card"><p class="empty-state">No questions posted yet.</p></div>`}
     </section>
@@ -165,7 +156,7 @@ function renderProfileEditForm(root, data) {
     };
 
     try {
-      const res = await fetch(`${window.API_BASE_URL}/api/profile`, {
+      const res = await fetch(`${window.API_BASE_URL}/api/profile/${window.CURRENT_USER_ID}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
