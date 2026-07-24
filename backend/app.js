@@ -27,7 +27,13 @@ const FRONTEND_PORT = 5173;
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || origin === "http://localhost:5173" || origin === "http://localhost:3000" || origin.endsWith(".app.github.dev")) {
+      if (
+        !origin ||
+        origin === "http://localhost:5173" ||
+        origin === "http://localhost:3000" ||
+        origin.endsWith(".app.github.dev") ||
+        (typeof origin === "string" && origin.endsWith(".onrender.com"))
+      ) {
         return callback(null, true);
       }
       return callback(new Error("Not allowed by CORS"));
