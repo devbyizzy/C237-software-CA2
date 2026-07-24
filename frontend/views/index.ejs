@@ -33,11 +33,13 @@
       </a>
     </div>
 
+    <!-- ===== ADVANCED SEARCH FEATURE START ===== -->
+    <!-- Changed from action="#" to action="/search" to send users to the
+         Advanced Search Results page when they press Enter or click Search. -->
     <form
       class="navbar-search"
-      action="#"
+      action="/search"
       method="GET"
-      onsubmit="return false;"
     >
       <span class="search-icon">
         🔍
@@ -46,9 +48,10 @@
       <input
         type="text"
         name="q"
-        placeholder="Search students, questions, groups..."
+        placeholder="Search groups, CCAs or modules..."
       />
     </form>
+    <!-- ===== ADVANCED SEARCH FEATURE END ===== -->
 
     <div class="navbar-right">
       <button
