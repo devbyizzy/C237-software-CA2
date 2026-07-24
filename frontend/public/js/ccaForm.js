@@ -28,8 +28,7 @@ document.addEventListener('DOMContentLoaded', function () {
       training_day: formData.get('training_day'),
       training_time: formData.get('training_time'),
       location: formData.get('location'),
-      contact_information: formData.get('contact_information'),
-      image: formData.get('image_url') || null
+      contact_information: formData.get('contact_information')
     };
 
     try {
@@ -37,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (isEdit && ccaId) {
         url = `${window.API_BASE_URL}/api/ccas/admin/${ccaId}/edit`;
       } else {
-        url = `${window.API_BASE_URL}/api/ccas`;
+        url = `${window.API_BASE_URL}/api/ccas/admin/add`;
       }
 
       const res = await fetch(url, {
@@ -109,7 +108,6 @@ async function loadCcaForEdit(id) {
     document.getElementById('training_time').value = cca.training_time || '';
     document.getElementById('location').value = cca.location || '';
     document.getElementById('contact_information').value = cca.contact_information || '';
-    document.getElementById('image_url').value = cca.image || '';
   } catch (err) {
     console.error('Failed to load CCA for edit:', err);
     formError.textContent = 'Could not load CCA data for editing. Make sure the backend server is running.';

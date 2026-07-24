@@ -97,6 +97,18 @@ const getAuthenticatedLandingPath = (
     : "/dashboard";
 };
 
+app.use(
+  "/admin",
+  requireAdmin,
+  adminRoutes
+);
+
+/*
+|--------------------------------------------------------------------------
+| Home
+|--------------------------------------------------------------------------
+*/
+
 app.get("/", (req, res) => {
   if (req.session.user) {
     return res.redirect(
@@ -108,33 +120,6 @@ app.get("/", (req, res) => {
 
   return res.redirect("/login");
 });
-
-app.get(
-  "/admin/ccas/add",
-  requireLogin,
-  (req, res) => {
-    return res.render("addCCA", {
-      user: req.session.user,
-    });
-  }
-);
-
-app.get(
-  "/admin/ccas/:id/edit",
-  requireLogin,
-  (req, res) => {
-    return res.render("editCCA", {
-      user: req.session.user,
-      ccaId: req.params.id,
-    });
-  }
-);
-
-app.use(
-  "/admin",
-  requireAdmin,
-  adminRoutes
-);
 
 /*
 |--------------------------------------------------------------------------
@@ -1485,16 +1470,6 @@ app.get(
 );
 
 app.get(
-  "/ccas/new",
-  requireLogin,
-  (req, res) => {
-    return res.render("addCCA", {
-      user: req.session.user,
-    });
-  }
-);
-
-app.get(
   "/ccas/:id",
   requireLogin,
   (req, res) => {
@@ -1505,6 +1480,16 @@ app.get(
         ccaId: req.params.id,
       }
     );
+  }
+);
+
+app.get(
+  "/admin/ccas/add",
+  requireLogin,
+  (req, res) => {
+    return res.render("addCCA", {
+      user: req.session.user,
+    });
   }
 );
 

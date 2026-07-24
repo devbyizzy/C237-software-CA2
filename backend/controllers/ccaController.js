@@ -31,7 +31,7 @@ function mapTrainingTime(start, end) {
 }
 
 function rowToCca(row) {
-  const mapped = {
+  return {
     cca_id: row.cca_id,
     cca_name: row.cca_name,
     category: row.category,
@@ -44,7 +44,6 @@ function rowToCca(row) {
     created_at: row.created_at,
     member_count: typeof row.member_count === 'number' ? row.member_count : (typeof row.member_count === 'string' ? parseInt(row.member_count, 10) || 0 : 0)
   };
-  return mapped;
 }
 
 exports.getAllCcas = (req, res) => {
