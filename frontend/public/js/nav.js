@@ -13,13 +13,7 @@ function initNavInteractivity() {
     hamburgerBtn.addEventListener(
       "click",
       function () {
-        const sidebarIsOpen =
-          sidebar.classList.toggle("open");
-
-        hamburgerBtn.setAttribute(
-          "aria-expanded",
-          String(sidebarIsOpen)
-        );
+        sidebar.classList.toggle("open");
       }
     );
   }
@@ -85,6 +79,23 @@ function initNavInteractivity() {
           alert(
             "You have no new notifications."
           );
+        }
+      );
+    });
+
+  document
+    .querySelectorAll(".sidebar-link-soon")
+    .forEach(function (link) {
+      link.addEventListener(
+        "click",
+        function (event) {
+          event.preventDefault();
+
+          const label = link.textContent
+            .trim()
+            .replace(/\s+/g, " ");
+
+          alert(label + " coming soon!");
         }
       );
     });
