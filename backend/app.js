@@ -8,6 +8,7 @@ const ccaRoutes = require('./routes/ccas');
 const groupRoutes = require('./routes/groups');
 const groupPostRoutes = require('./routes/groupPosts');
 const interestGroupRoutes = require('./routes/interestGroups');
+const forumRoutes = require('./routes/forum');
 const authRoutes = require("./routes/auth");
 const passwordResetRoutes = require("./routes/passwordReset")
 const twoFactorRoutes = require("./routes/twoFactor");
@@ -45,6 +46,7 @@ app.use('/api/ccas', ccaRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/group-posts', groupPostRoutes);
 app.use('/api/interest-groups', interestGroupRoutes);
+app.use('/api/questions', forumRoutes);
 app.use("/api/auth", passwordResetRoutes);
 app.use("/api/auth/2fa",twoFactorRoutes);
 // ===== ADVANCED SEARCH FEATURE START =====

@@ -1537,6 +1537,15 @@ app.get('/interest-groups', requireLogin, (req, res) => {
   return res.render('interestGroups', { user: req.session.user });
 });
 
+app.get('/forum', requireLogin, (req, res) => {
+  return res.render('forum', { user: req.session.user });
+});
+
+app.get('/forum/:id', requireLogin, (req, res) => {
+  return res.render('forumThread', { user: req.session.user, questionId: req.params.id });
+});
+
+
 app.get(
   "/groups/:id",
   requireLogin,
