@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPConnect Admin - Question Details</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-page">
+  <a class="admin-skip-link" href="#adminMain">Skip to question details</a>
+
+  <%- include("partials/header", { user: user }) %>
+
+  <%
+    const record =
+      typeof question !== "undefined" && question && typeof question === "object"
+        ? question
+        : {};
+    const questionReplies =
+      typeof replies !== "undefined" && Array.isArray(replies) ? replies : [];
+    const questionId =
+      record.question_id !== undefined ? record.question_id : record.questionId;
+    const questionStatus =
+      typeof record.status === "string" &&
+      record.status.toLowerCase() === "resolved"
+        ? "resolved"
+        : "open";
+    const safeCsrfToken =
+      typeof csrfToken === "string" ? csrfToken : "";
+    const statusOptions = (
+      typeof statuses !== "undefined" && Array.isArray(statuses)
+        ? statuses
+        : ["open", "resolved"]
+    ).filter(function (status) {
+      return typeof status === "string" && status.length > 0;
+    });
+    const noticeMessage =
+      typeof notice !== "undefined" && notice && typeof notice === "object"
+        ? notice.message
+        : typeof notice !== "undefined"
+          ? notice
+          : null;
+    const noticeType =
+      typeof notice !== "undefined" &&
+      notice &&
+      typeof notice === "object" &&
+      notice.type === "success"
+        ? "success"
+        : "error";
+
+    function displayAdminValue(value) {
+      return value === undefined || value === null || value === ""
+        ? "Not provided"
+        : value;
+    }
+
+    function formatAdminDate(value) {
+      if (!value) {
+        return "Not available";
+      }
+
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return "Not available";
+      }
+
+      return new Intl.DateTimeFormat("en-SG", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(date);
+    }
+
+    function adminDateTime(value) {
+      if (!value) {
+        return "";
+      }
+
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+    }
+  %>
+
+  <div class="layout admin-layout">
+    <%- include("partials/sidebar", {
+      activePage: "questions",
+      csrfToken: safeCsrfToken
+    }) %>
+
+    <main class="admin-main" id="adminMain">
+      <nav class="admin-breadcrumbs" aria-label="Breadcrumb">
+        <a href="/admin">Dashboard</a>
+        <span aria-hidden="true">/</span>
+        <a href="/admin/questions">Questions</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Question #<%= questionId %></span>
+      </nav>
+
+      <div class="admin-page-header admin-user-heading">
+        <div>
+          <p class="admin-eyebrow">Question #<%= questionId %></p>
+          <h1 class="admin-page-title"><%= record.title || "Untitled question" %></h1>
+          <p class="admin-page-subtitle">
+            Asked by <%= record.author_username || record.username || record.name || "an unknown user" %>
+          </p>
+        </div>
+
+        <span class="admin-status-badge admin-status-badge--<%= questionStatus %>">
+          <span class="admin-status-dot" aria-hidden="true"></span>
+          <%= questionStatus === "resolved" ? "Resolved" : "Open" %>
+        </span>
+      </div>
+
+      <% if (noticeMessage) { %>
+        <div
+          class="admin-notice admin-notice--<%= noticeType %>"
+          role="<%= noticeType === "success" ? "status" : "alert" %>"
+        >
+          <span class="admin-notice-icon" aria-hidden="true">
+            <%= noticeType === "success" ? "✓" : "!" %>
+          </span>
+          <p><%= noticeMessage %></p>
+        </div>
+      <% } %>
+
+      <section class="admin-panel" aria-labelledby="questionContentTitle">
+        <div class="admin-panel-header">
+          <div>
+            <p class="admin-eyebrow">Original post</p>
+            <h2 class="admin-panel-title" id="questionContentTitle">Question content</h2>
+          </div>
+        </div>
+
+        <div class="admin-content-panel">
+          <p class="admin-content-body"><%= displayAdminValue(record.content) %></p>
+          <dl class="admin-content-meta">
+            <div>
+              <dt>Author</dt>
+              <dd><%= displayAdminValue(record.author_username || record.username || record.name) %></dd>
+            </div>
+            <div>
+              <dt>Email</dt>
+              <dd class="admin-break-value"><%= displayAdminValue(record.author_email || record.email) %></dd>
+            </div>
+            <div>
+              <dt>Category</dt>
+              <dd><%= displayAdminValue(record.category) %></dd>
+            </div>
+            <div>
+              <dt>Created</dt>
+              <dd>
+                <time datetime="<%= adminDateTime(record.created_at || record.createdAt) %>">
+                  <%= formatAdminDate(record.created_at || record.createdAt) %>
+                </time>
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="admin-panel" aria-labelledby="questionStatusTitle">
+        <div class="admin-panel-header">
+          <div>
+            <p class="admin-eyebrow">Moderation state</p>
+            <h2 class="admin-panel-title" id="questionStatusTitle">Update question status</h2>
+          </div>
+        </div>
+
+        <form
+          action="/admin/questions/<%= encodeURIComponent(String(questionId)) %>/status"
+          method="POST"
+          class="admin-action-row admin-status-form"
+        >
+          <input type="hidden" name="_csrf" value="<%= safeCsrfToken %>" />
+          <input type="hidden" name="confirmStatusChange" value="yes" />
+
+          <div class="form-group admin-form-group">
+            <label class="form-label" for="questionStatus">Status</label>
+            <select
+              class="form-input admin-select"
+              id="questionStatus"
+              name="status"
+              required
+            >
+              <% statusOptions.forEach(function (status) { %>
+                <option value="<%= status %>" <%= questionStatus === status ? "selected" : "" %>>
+                  <%= status.charAt(0).toUpperCase() + status.slice(1) %>
+                </option>
+              <% }); %>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Save status</button>
+        </form>
+      </section>
+
+      <section class="admin-panel" aria-labelledby="questionRepliesTitle">
+        <div class="admin-panel-header">
+          <div>
+            <p class="admin-eyebrow">Discussion</p>
+            <h2 class="admin-panel-title" id="questionRepliesTitle">Replies</h2>
+          </div>
+          <p class="admin-results-summary">
+            <strong><%= questionReplies.length %></strong>
+            <%= questionReplies.length === 1 ? "reply" : "replies" %>
+          </p>
+        </div>
+
+        <% if (questionReplies.length > 0) { %>
+          <ol class="admin-reply-list">
+            <% questionReplies.forEach(function (reply, index) { %>
+              <%
+                const replyId =
+                  reply.reply_id !== undefined
+                    ? reply.reply_id
+                    : reply.question_reply_id !== undefined
+                      ? reply.question_reply_id
+                      : reply.replyId;
+                const replyDomId =
+                  String(replyId === undefined ? index : replyId)
+                    .replace(/[^A-Za-z0-9_-]/g, "") || String(index);
+              %>
+              <li class="admin-reply-card">
+                <div class="admin-reply-heading">
+                  <div>
+                    <span class="admin-user-primary">
+                      <%= reply.author_username || reply.username || reply.name || "Unknown user" %>
+                    </span>
+                    <span class="admin-secondary-line">
+                      Reply #<%= replyId %>
+                      <% if (reply.author_email || reply.email) { %>
+                        · <span class="admin-break-value"><%= reply.author_email || reply.email %></span>
+                      <% } %>
+                    </span>
+                  </div>
+                  <time datetime="<%= adminDateTime(reply.created_at || reply.createdAt) %>">
+                    <%= formatAdminDate(reply.created_at || reply.createdAt) %>
+                  </time>
+                </div>
+
+                <p class="admin-content-body"><%= displayAdminValue(reply.content) %></p>
+
+                <form
+                  action="/admin/question-replies/<%= encodeURIComponent(String(replyId)) %>/delete"
+                  method="POST"
+                  class="admin-reply-action"
+                >
+                  <input type="hidden" name="_csrf" value="<%= safeCsrfToken %>" />
+                  <input type="hidden" name="questionId" value="<%= questionId %>" />
+                  <label
+                    class="admin-confirm-control"
+                    for="confirmDeleteReply<%= replyDomId %>"
+                  >
+                    <input
+                      id="confirmDeleteReply<%= replyDomId %>"
+                      type="checkbox"
+                      name="confirmDelete"
+                      value="yes"
+                      required
+                    />
+                    <span>I confirm that this reply should be deleted.</span>
+                  </label>
+                  <button type="submit" class="admin-danger-button admin-danger-button--compact">
+                    Delete reply
+                  </button>
+                </form>
+              </li>
+            <% }); %>
+          </ol>
+        <% } else { %>
+          <div class="admin-empty-state admin-empty-state--compact">
+            <span class="admin-empty-icon" aria-hidden="true">&#128172;</span>
+            <h3>No replies</h3>
+            <p>This question has not received any replies.</p>
+          </div>
+        <% } %>
+      </section>
+
+      <section class="admin-danger-panel" aria-labelledby="deleteQuestionTitle">
+        <div class="admin-danger-copy">
+          <p class="admin-eyebrow admin-eyebrow--danger">Permanent moderation action</p>
+          <h2 id="deleteQuestionTitle">Delete question</h2>
+          <p>
+            This permanently removes the question and all of its replies.
+            This action cannot be undone.
+          </p>
+        </div>
+
+        <form
+          action="/admin/questions/<%= encodeURIComponent(String(questionId)) %>/delete"
+          method="POST"
+          class="admin-reset-form"
+        >
+          <input type="hidden" name="_csrf" value="<%= safeCsrfToken %>" />
+
+          <label class="admin-confirm-control" for="confirmDeleteQuestion">
+            <input
+              id="confirmDeleteQuestion"
+              type="checkbox"
+              name="confirmDelete"
+              value="yes"
+              required
+            />
+            <span>
+              I confirm that I am permanently deleting
+              <strong><%= record.title || "this question" %></strong>.
+            </span>
+          </label>
+
+          <button type="submit" class="admin-danger-button">Delete question permanently</button>
+        </form>
+      </section>
+
+      <div class="admin-page-footer-action">
+        <a href="/admin/questions" class="btn btn-outline">Back to questions</a>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPConnect Admin - Users</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-page">
+  <a class="admin-skip-link" href="#adminMain">Skip to user management</a>
+
+  <%- include("partials/header", { user: user }) %>
+
+  <%
+    const adminUsers = Array.isArray(users) ? users : [];
+    const activeFilters = filters || {};
+    const adminRoles = (Array.isArray(roles) ? roles : []).filter(function (role) {
+      return typeof role === "string" && role.length > 0;
+    });
+    const canManageSuspension =
+      typeof suspensionAvailable !== "undefined" &&
+      suspensionAvailable === true;
+    const noticeMessage =
+      typeof notice !== "undefined" &&
+      notice &&
+      typeof notice === "object"
+        ? notice.message
+        : typeof notice !== "undefined"
+          ? notice
+          : null;
+    const noticeType =
+      typeof notice !== "undefined" &&
+      notice &&
+      typeof notice === "object" &&
+      notice.type === "success"
+        ? "success"
+        : "error";
+
+    function formatAdminDate(value) {
+      if (!value) {
+        return "Not available";
+      }
+
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return "Not available";
+      }
+
+      return new Intl.DateTimeFormat("en-SG", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(date);
+    }
+
+    function adminDateTime(value) {
+      if (!value) {
+        return "";
+      }
+
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+    }
+  %>
+
+  <div class="layout admin-layout">
+    <%- include("partials/sidebar", {
+      activePage: "users",
+      csrfToken: typeof csrfToken === "string" ? csrfToken : ""
+    }) %>
+
+    <main class="admin-main" id="adminMain">
+      <div class="admin-page-header">
+        <div>
+          <p class="admin-eyebrow">Account administration</p>
+          <h1 class="admin-page-title">User Management</h1>
+          <p class="admin-page-subtitle">
+            Search accounts, review roles, and inspect account security status.
+          </p>
+        </div>
+
+        <div class="admin-count-chip">
+          <strong><%= adminUsers.length %></strong>
+          <span><%= adminUsers.length === 1 ? "result" : "results" %></span>
+        </div>
+      </div>
+
+      <% if (noticeMessage) { %>
+        <div
+          class="admin-notice admin-notice--<%= noticeType %>"
+          role="<%= noticeType === "success" ? "status" : "alert" %>"
+        >
+          <span class="admin-notice-icon" aria-hidden="true">
+            <%= noticeType === "success" ? "✓" : "!" %>
+          </span>
+          <p><%= noticeMessage %></p>
+        </div>
+      <% } %>
+
+      <section class="admin-panel admin-filter-panel" aria-labelledby="userFiltersTitle">
+        <div class="admin-panel-header admin-panel-header--compact">
+          <div>
+            <p class="admin-eyebrow">Find an account</p>
+            <h2 class="admin-panel-title" id="userFiltersTitle">Search and filter</h2>
+          </div>
+        </div>
+
+        <form
+          action="/admin/users"
+          method="GET"
+          class="admin-filter-form<%= canManageSuspension ? " admin-filter-form--users" : "" %>"
+        >
+          <div class="form-group admin-form-group">
+            <label class="form-label" for="usernameFilter">Username</label>
+            <input
+              class="form-input"
+              id="usernameFilter"
+              name="username"
+              type="search"
+              value="<%= activeFilters.username || "" %>"
+              placeholder="Search by username"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="form-group admin-form-group">
+            <label class="form-label" for="emailFilter">Email</label>
+            <input
+              class="form-input"
+              id="emailFilter"
+              name="email"
+              type="search"
+              value="<%= activeFilters.email || "" %>"
+              placeholder="Search by RP email"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="form-group admin-form-group">
+            <label class="form-label" for="roleFilter">Role</label>
+            <select class="form-input admin-select" id="roleFilter" name="role">
+              <option value="">All roles</option>
+              <% adminRoles.forEach(function (role) { %>
+                <option
+                  value="<%= role %>"
+                  <%= activeFilters.role === role ? "selected" : "" %>
+                >
+                  <%= role %>
+                </option>
+              <% }); %>
+            </select>
+          </div>
+
+          <% if (canManageSuspension) { %>
+            <div class="form-group admin-form-group">
+              <label class="form-label" for="accountStatusFilter">Account status</label>
+              <select
+                class="form-input admin-select"
+                id="accountStatusFilter"
+                name="status"
+              >
+                <option value="">All statuses</option>
+                <option value="active" <%= activeFilters.status === "active" ? "selected" : "" %>>
+                  Active
+                </option>
+                <option value="suspended" <%= activeFilters.status === "suspended" ? "selected" : "" %>>
+                  Suspended
+                </option>
+              </select>
+            </div>
+          <% } %>
+
+          <div class="admin-filter-actions">
+            <button type="submit" class="btn btn-primary">Apply filters</button>
+            <a href="/admin/users" class="btn btn-outline">Clear</a>
+          </div>
+        </form>
+      </section>
+
+      <section class="admin-panel" aria-labelledby="usersTableTitle">
+        <div class="admin-panel-header">
+          <div>
+            <p class="admin-eyebrow">Directory</p>
+            <h2 class="admin-panel-title" id="usersTableTitle">RPConnect users</h2>
+          </div>
+          <p class="admin-results-summary">
+            Showing <strong><%= adminUsers.length %></strong>
+            <%= adminUsers.length === 1 ? "account" : "accounts" %>
+          </p>
+        </div>
+
+        <% if (adminUsers.length > 0) { %>
+          <div class="admin-table-wrap">
+            <table class="admin-table admin-users-table">
+              <caption class="admin-visually-hidden">
+                RPConnect user accounts matching the selected filters
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">User ID</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Username</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Role</th>
+                  <% if (canManageSuspension) { %>
+                    <th scope="col">Account status</th>
+                  <% } %>
+                  <th scope="col">Account created</th>
+                  <th scope="col">2FA</th>
+                  <th scope="col"><span class="admin-visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% adminUsers.forEach(function (account) { %>
+                  <%
+                    const accountId =
+                      account.user_id !== undefined ? account.user_id : account.userId;
+                    const accountCreatedAt =
+                      account.created_at !== undefined ? account.created_at : account.createdAt;
+                    const accountTwoFactor =
+                      account.two_factor_enabled !== undefined
+                        ? account.two_factor_enabled
+                        : account.twoFactorEnabled;
+                    const accountStatus =
+                      typeof account.account_status === "string" &&
+                      account.account_status
+                        ? account.account_status.toLowerCase()
+                        : "active";
+                  %>
+                  <tr>
+                    <td>
+                      <span class="admin-id-chip">#<%= accountId %></span>
+                    </td>
+                    <td><%= account.name || "Not provided" %></td>
+                    <td>
+                      <span class="admin-user-primary">
+                        <%= account.username || "Not available" %>
+                      </span>
+                    </td>
+                    <td class="admin-table-muted">
+                      <%= account.email || "Not available" %>
+                    </td>
+                    <td>
+                      <span class="admin-role-badge<%= account.role === "admin" ? " admin-role-badge--admin" : "" %>">
+                        <%= account.role || "Not assigned" %>
+                      </span>
+                    </td>
+                    <% if (canManageSuspension) { %>
+                      <td>
+                        <span class="admin-status-badge admin-status-badge--<%= accountStatus === "suspended" ? "suspended" : "active" %>">
+                          <span class="admin-status-dot" aria-hidden="true"></span>
+                          <%= accountStatus === "suspended" ? "Suspended" : "Active" %>
+                        </span>
+                      </td>
+                    <% } %>
+                    <td>
+                      <time datetime="<%= adminDateTime(accountCreatedAt) %>">
+                        <%= formatAdminDate(accountCreatedAt) %>
+                      </time>
+                    </td>
+                    <td>
+                      <span class="admin-status-badge<%= accountTwoFactor ? " admin-status-badge--enabled" : " admin-status-badge--disabled" %>">
+                        <span class="admin-status-dot" aria-hidden="true"></span>
+                        <%= accountTwoFactor ? "Enabled" : "Not enabled" %>
+                      </span>
+                    </td>
+                    <td class="admin-table-action">
+                      <a
+                        class="btn btn-outline admin-table-button"
+                        href="/admin/users/<%= encodeURIComponent(String(accountId)) %>"
+                        aria-label="View details for <%= account.username || account.name || "this user" %>"
+                      >
+                        View
+                      </a>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="admin-empty-state">
+            <span class="admin-empty-icon" aria-hidden="true">&#128269;</span>
+            <h3>No matching users</h3>
+            <p>Try clearing one or more search filters.</p>
+            <a href="/admin/users" class="btn btn-outline">Clear all filters</a>
+          </div>
+        <% } %>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/nav.js"></script>
+</body>
+</html>

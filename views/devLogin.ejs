@@ -1,0 +1,25 @@
+<%# devLogin.ejs - TEMPORARY page for demoing this branch alone.
+    Lists real users from the database; picking one sets req.session.userId.
+    DELETE this file once Member 1's real login/register pages are merged. %>
+<%- include('partials/header', { title: 'Dev Login' }) %>
+
+<section>
+    <h2>Choose a demo user</h2>
+    <p class="notice">Temporary login for the Groups feature branch.
+       Member 1's real login (with password + OTP) replaces this page.</p>
+
+    <ul class="member-list">
+        <% users.forEach(user => { %>
+            <li>
+                <form method="POST" action="/login">
+                    <input type="hidden" name="user_id" value="<%= user.user_id %>">
+                    <button type="submit">
+                        Login as <%= user.name %> (<%= user.diploma || 'No diploma' %>)
+                    </button>
+                </form>
+            </li>
+        <% }) %>
+    </ul>
+</section>
+
+<%- include('partials/footer') %>

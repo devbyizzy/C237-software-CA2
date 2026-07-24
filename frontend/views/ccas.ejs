@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPConnect - CCAs</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/icons@latest/tabler-icons.min.js"></script>
+  <script src="/js/ccaTheme.js"></script>
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="navbar-left">
+      <button class="hamburger" id="hamburgerBtn" aria-label="Toggle menu">☰</button>
+      <a href="/" class="logo">🎓 RPConnect</a>
+    </div>
+
+    <form class="navbar-search" action="#" method="GET" onsubmit="return false;">
+      <span class="search-icon">🔍</span>
+      <input type="text" name="q" placeholder="Search students, questions, groups..." />
+    </form>
+
+    <div class="navbar-right">
+      <button class="btn btn-primary create-btn">+ Create</button>
+
+      <button class="icon-btn notif-btn" aria-label="Notifications" title="Notifications">
+        🔔
+        <span class="notif-dot" id="notifDot" hidden></span>
+      </button>
+
+      <div class="navbar-profile dropdown">
+        <button class="navbar-profile-trigger" id="profileMenuBtn">
+          <div class="avatar avatar-sm" id="navAvatar"></div>
+          <span class="navbar-username" id="navUsername"></span>
+          <span class="caret">▾</span>
+        </button>
+        <div class="dropdown-menu" id="profileMenu">
+          <a href="/profile" class="dropdown-item">🙍 My Profile</a>
+          <a href="/profile" class="dropdown-item">⚙️ Settings</a>
+          <a href="#" class="dropdown-item logout-item">🚪 Logout</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <a href="/" class="sidebar-link">
+          <span class="sidebar-icon">🏠</span> Home
+        </a>
+        <a href="/groups" class="sidebar-link">
+          <span class="sidebar-icon">👥</span> Groups
+        </a>
+        <a href="/interest-groups" class="sidebar-link">
+          <span class="sidebar-icon">✨</span> Interest Groups
+        </a>
+        <a href="/forum" class="sidebar-link">
+          <span class="sidebar-icon">💬</span> Forum
+        </a>
+        <a href="/ccas" class="sidebar-link active">
+          <span class="sidebar-icon">🎭</span> CCAs
+        </a>
+        <a href="/students" class="sidebar-link">
+          <span class="sidebar-icon">🔎</span> Student Finder
+        </a>
+        <a href="/groups?mine=1" class="sidebar-link">
+          <span class="sidebar-icon">📌</span> My Groups
+        </a>
+        <a href="/profile" class="sidebar-link">
+          <span class="sidebar-icon">🙍</span> My Profile
+        </a>
+      </nav>
+    </aside>
+
+    <main class="feed">
+      <h1 class="feed-title">CCA Directory</h1>
+
+      <section class="feed-section">
+        <div class="card" id="quizBanner" style="padding:20px 24px; background: linear-gradient(135deg, rgba(255,0,229,0.08), rgba(0,245,255,0.06)); border-color: rgba(255,0,229,0.2); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+          <div>
+            <p style="font-size:16px; font-weight:700; margin-bottom:4px;">🧭 Not sure which CCA to join?</p>
+            <p style="font-size:14px; color:var(--text-muted);">Take our 1-minute quiz and we'll match you with CCAs that fit your interests and schedule.</p>
+          </div>
+          <button class="btn btn-primary" id="startQuizBtn" style="white-space:nowrap;">Start Quiz</button>
+        </div>
+      </section>
+
+      <section class="feed-section">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <p class="results-count" id="resultsCount"></p>
+          <a href="/ccas/new" class="btn btn-primary">+ Add CCA</a>
+        </div>
+        <div class="search-results-grid" id="ccaResults"></div>
+      </section>
+
+      <div class="quiz-overlay" id="quizOverlay" style="display:none;">
+        <div class="quiz-modal">
+          <div class="quiz-header">
+            <h2 class="quiz-title" id="quizTitle">🧭 CCA Finder Quiz</h2>
+            <button class="quiz-close" id="quizCloseBtn" aria-label="Close quiz">✕</button>
+          </div>
+          <div class="quiz-body" id="quizBody"></div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="right-panel">
+      <section class="panel-section">
+        <h2>🎭 About CCAs</h2>
+        <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">
+          Co-Curricular Activities (CCAs) are an important part of student life at RP.
+          Browse available CCAs, find session times, and get involved!
+        </p>
+      </section>
+
+      <section class="panel-section" id="popularCcasPanel">
+        <h2>Popular CCAs</h2>
+        <p class="card-content" style="margin-bottom:0;" id="popularCcasContent">Loading...</p>
+      </section>
+
+      <section class="panel-section" id="upcomingSessionsPanel">
+        <h2>Upcoming Sessions</h2>
+        <p class="card-content" style="margin-bottom:0;" id="upcomingSessionsContent">Loading...</p>
+      </section>
+
+      <section class="panel-section" id="categoriesPanel">
+        <h2>Categories</h2>
+        <div id="categoriesContent" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+      </section>
+    </aside>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/ccas.js"></script>
+</body>
+</html>
