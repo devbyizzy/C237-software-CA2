@@ -11,7 +11,7 @@
     "start": "concurrently --kill-others-on-fail --names \"BACKEND,FRONTEND\" \"npm start --prefix backend\" \"npm start --prefix frontend\"",
     "postinstall": "npm run install-all"
   },
-  "devDependencies": {
+  "dependencies": {
     "concurrently": "^9.2.4"
   }
 }

@@ -11,7 +11,7 @@ const requireLogin = require(
 
 const app = express();
 
-const PORT = process.env.PORT || 5173;
+const PORT = 5173;
 const API_URL =
   process.env.API_URL || "http://localhost:3000";
 

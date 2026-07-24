@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
+const { createProxyMiddleware } = require("http-proxy-middleware");
 
 const dashboardRoutes = require('./routes/dashboard');
 const profileRoutes = require('./routes/profile');
@@ -20,11 +22,12 @@ const pool = require('./utils/db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const FRONTEND_PORT = 5173;
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || origin === "http://localhost:5173" || origin.endsWith(".app.github.dev")) {
+      if (!origin || origin === "http://localhost:5173" || origin === "http://localhost:3000" || origin.endsWith(".app.github.dev")) {
         return callback(null, true);
       }
       return callback(new Error("Not allowed by CORS"));
@@ -53,41 +56,11 @@ app.use("/api/auth/2fa",twoFactorRoutes);
 app.use('/api', searchRoutes);
 // ===== ADVANCED SEARCH FEATURE END =====
 
-app.get("/", (req, res) => {
-  res.json({
-    message: "RPConnect API is running",
-    endpoints: [
-      'GET  /api/dashboard',
-      'GET  /api/profile',
-      'PUT  /api/profile',
-      'GET  /api/profile/:id',
-      'GET  /api/students?diploma=&class_code=&interest=',
-      'GET  /api/ccas?search=&category=',
-      'GET  /api/groups?search=&type=&diploma=&class_code=&sort=&mine=&user_id=',
-      'GET  /api/groups/dashboard?user_id=',
-      'GET  /api/groups/:id',
-      'GET  /api/groups/:id/members',
-      'GET  /api/groups/:id/posts',
-      'GET  /api/groups/:id/requests?user_id=',
-      'POST /api/groups',
-      'POST /api/groups/:id/edit',
-      'POST /api/groups/:id/delete',
-      'POST /api/groups/:id/join',
-      'POST /api/groups/:id/leave',
-      'POST /api/groups/:id/requests/:userId/accept',
-      'POST /api/groups/:id/requests/:userId/reject',
-      'POST /api/groups/:id/posts',
-      'POST /api/group-posts/:id/replies'
-    ]
-  });
-});
-
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "API endpoint not found.",
-  });
-});
+// Proxy non-API requests to the frontend server
+app.use('/', createProxyMiddleware({
+  target: `http://localhost:${FRONTEND_PORT}`,
+  changeOrigin: true,
+}));
 
 app.use((error, req, res, next) => {
   console.error("Backend error:", error);
@@ -95,6 +68,13 @@ app.use((error, req, res, next) => {
   res.status(500).json({
     success: false,
     message: "An unexpected server error occurred.",
+  });
+});
+
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "API endpoint not found.",
   });
 });
 
