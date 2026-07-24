@@ -13,7 +13,13 @@ function initNavInteractivity() {
     hamburgerBtn.addEventListener(
       "click",
       function () {
-        sidebar.classList.toggle("open");
+        const sidebarIsOpen =
+          sidebar.classList.toggle("open");
+
+        hamburgerBtn.setAttribute(
+          "aria-expanded",
+          String(sidebarIsOpen)
+        );
       }
     );
   }

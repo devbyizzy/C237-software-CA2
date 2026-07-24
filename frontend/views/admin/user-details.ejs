@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPConnect Admin - User Details</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-page">
+  <a class="admin-skip-link" href="#adminMain">Skip to user details</a>
+
+  <%- include("partials/header", { user: user }) %>
+
+  <%
+    const account = targetUser || {};
+    const accountId =
+      account.user_id !== undefined ? account.user_id : account.userId;
+    const accountCreatedAt =
+      account.created_at !== undefined ? account.created_at : account.createdAt;
+    const accountTwoFactor =
+      account.two_factor_enabled !== undefined
+        ? Boolean(account.two_factor_enabled)
+        : Boolean(account.twoFactorEnabled);
+    const accountStatus =
+      typeof account.account_status === "string" &&
+      account.account_status.toLowerCase() === "suspended"
+        ? "suspended"
+        : "active";
+    const canManageSuspension =
+      typeof suspensionAvailable !== "undefined" &&
+      suspensionAvailable === true;
+    const viewingOwnAccount =
+      typeof isSelf !== "undefined"
+        ? Boolean(isSelf)
+        : Boolean(
+            user &&
+            Number(user.userId) === Number(accountId)
+          );
+    const roleOptions = (
+      typeof allowedRoles !== "undefined" &&
+      Array.isArray(allowedRoles)
+        ? allowedRoles
+        : ["year1", "year2", "year3", "admin"]
+    ).filter(function (role) {
+      return typeof role === "string" && role.length > 0;
+    });
+    const impact =
+      typeof deletionImpact !== "undefined" &&
+      deletionImpact &&
+      typeof deletionImpact === "object"
+        ? deletionImpact
+        : {};
+
+    function deletionImpactValue() {
+      const keys = Array.prototype.slice.call(arguments);
+      for (let index = 0; index < keys.length; index += 1) {
+        const value = impact[keys[index]];
+        if (
+          value !== undefined &&
+          value !== null &&
+          value !== "" &&
+          Number.isFinite(Number(value))
+        ) {
+          return Number(value);
+        }
+      }
+      return null;
+    }
+
+    const impactItems = [
+      {
+        count: deletionImpactValue("ownedGroups", "groupsCreated", "groups_created"),
+        singular: "RP Circle created",
+        plural: "RP Circles created"
+      },
+      {
+        count: deletionImpactValue("groupMemberships", "group_memberships"),
+        singular: "group membership",
+        plural: "group memberships"
+      },
+      {
+        count: deletionImpactValue("groupPosts", "group_posts"),
+        singular: "group post",
+        plural: "group posts"
+      },
+      {
+        count: deletionImpactValue("groupReplies", "group_replies"),
+        singular: "group reply",
+        plural: "group replies"
+      },
+      {
+        count: deletionImpactValue("createdCcas", "created_ccas"),
+        singular: "CCA created",
+        plural: "CCAs created"
+      },
+      {
+        count: deletionImpactValue("questions", "questionCount"),
+        singular: "question",
+        plural: "questions"
+      }
+    ].filter(function (item) {
+      return item.count !== null;
+    });
+    const profile =
+      account.profile ||
+      (account.profile_id
+        ? {
+            display_name: account.display_name,
+            profile_picture: account.profile_picture,
+            bio: account.bio,
+            diploma: account.diploma,
+            year_of_study: account.year_of_study,
+            semester: account.semester,
+            class_code: account.class_code,
+            interests: account.interests,
+            skills: account.skills,
+            looking_for: account.looking_for,
+            is_searchable: account.is_searchable,
+            created_at: account.profile_created_at,
+            updated_at: account.profile_updated_at
+          }
+        : null);
+    const noticeMessage =
+      notice && typeof notice === "object" ? notice.message : notice;
+    const noticeType =
+      notice &&
+      typeof notice === "object" &&
+      notice.type === "success"
+        ? "success"
+        : "error";
+
+    function displayAdminValue(value) {
+      return value === undefined || value === null || value === ""
+        ? "Not provided"
+        : value;
+    }
+
+    function formatAdminDate(value) {
+      if (!value) {
+        return "Not available";
+      }
+
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return "Not available";
+      }
+
+      return new Intl.DateTimeFormat("en-SG", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(date);
+    }
+
+    function adminDateTime(value) {
+      if (!value) {
+        return "";
+      }
+
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+    }
+  %>
+
+  <div class="layout admin-layout">
+    <%- include("partials/sidebar", {
+      activePage: "users",
+      csrfToken: typeof csrfToken === "string" ? csrfToken : ""
+    }) %>
+
+    <main class="admin-main" id="adminMain">
+      <nav class="admin-breadcrumbs" aria-label="Breadcrumb">
+        <a href="/admin">Dashboard</a>
+        <span aria-hidden="true">/</span>
+        <a href="/admin/users">Users</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page"><%= account.username || "User details" %></span>
+      </nav>
+
+      <div class="admin-page-header admin-user-heading">
+        <div class="admin-user-heading-main">
+          <div class="avatar admin-detail-avatar" aria-hidden="true">
+            <%= account.name || account.username
+              ? String(account.name || account.username).charAt(0).toUpperCase()
+              : "U"
+            %>
+          </div>
+
+          <div>
+            <p class="admin-eyebrow">User #<%= accountId %></p>
+            <h1 class="admin-page-title">
+              <%= account.name || account.username || "User account" %>
+            </h1>
+            <p class="admin-page-subtitle">
+              @<%= account.username || "username-unavailable" %>
+            </p>
+          </div>
+        </div>
+
+        <div class="admin-heading-badges" aria-label="Account role and status">
+          <span class="admin-role-badge admin-role-badge--large<%= account.role === "admin" ? " admin-role-badge--admin" : "" %>">
+            <%= account.role || "Not assigned" %>
+          </span>
+          <% if (canManageSuspension) { %>
+            <span class="admin-status-badge admin-status-badge--<%= accountStatus %>">
+              <span class="admin-status-dot" aria-hidden="true"></span>
+              <%= accountStatus === "suspended" ? "Suspended" : "Active" %>
+            </span>
+          <% } %>
+        </div>
+      </div>
+
+      <% if (noticeMessage) { %>
+        <div
+          class="admin-notice admin-notice--<%= noticeType %>"
+          role="<%= noticeType === "success" ? "status" : "alert" %>"
+        >
+          <span class="admin-notice-icon" aria-hidden="true">
+            <%= noticeType === "success" ? "✓" : "!" %>
+          </span>
+          <p><%= noticeMessage %></p>
+        </div>
+      <% } %>
+
+      <div class="admin-detail-columns">
+        <section class="admin-panel" aria-labelledby="accountInfoTitle">
+          <div class="admin-panel-header">
+            <div>
+              <p class="admin-eyebrow">Authentication record</p>
+              <h2 class="admin-panel-title" id="accountInfoTitle">Account information</h2>
+            </div>
+            <span class="admin-status-badge<%= accountTwoFactor ? " admin-status-badge--enabled" : " admin-status-badge--disabled" %>">
+              <span class="admin-status-dot" aria-hidden="true"></span>
+              2FA <%= accountTwoFactor ? "enabled" : "not enabled" %>
+            </span>
+          </div>
+
+          <dl class="admin-definition-grid">
+            <div class="admin-definition-item">
+              <dt>User ID</dt>
+              <dd><span class="admin-id-chip">#<%= accountId %></span></dd>
+            </div>
+            <div class="admin-definition-item">
+              <dt>Name</dt>
+              <dd><%= displayAdminValue(account.name) %></dd>
+            </div>
+            <div class="admin-definition-item">
+              <dt>Username</dt>
+              <dd><%= displayAdminValue(account.username) %></dd>
+            </div>
+            <div class="admin-definition-item">
+              <dt>Email</dt>
+              <dd class="admin-break-value"><%= displayAdminValue(account.email) %></dd>
+            </div>
+            <div class="admin-definition-item">
+              <dt>Role</dt>
+              <dd><%= displayAdminValue(account.role) %></dd>
+            </div>
+            <% if (canManageSuspension) { %>
+              <div class="admin-definition-item">
+                <dt>Account status</dt>
+                <dd><%= accountStatus === "suspended" ? "Suspended" : "Active" %></dd>
+              </div>
+            <% } %>
+            <div class="admin-definition-item">
+              <dt>Account created</dt>
+              <dd>
+                <time datetime="<%= adminDateTime(accountCreatedAt) %>">
+                  <%= formatAdminDate(accountCreatedAt) %>
+                </time>
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="admin-panel" aria-labelledby="profileInfoTitle">
+          <div class="admin-panel-header">
+            <div>
+              <p class="admin-eyebrow">Student-facing record</p>
+              <h2 class="admin-panel-title" id="profileInfoTitle">Profile information</h2>
+            </div>
+          </div>
+
+          <% if (profile) { %>
+            <dl class="admin-definition-grid">
+              <div class="admin-definition-item">
+                <dt>Display name</dt>
+                <dd><%= displayAdminValue(profile.display_name) %></dd>
+              </div>
+              <div class="admin-definition-item">
+                <dt>Diploma</dt>
+                <dd><%= displayAdminValue(profile.diploma) %></dd>
+              </div>
+              <div class="admin-definition-item">
+                <dt>Year of study</dt>
+                <dd><%= displayAdminValue(profile.year_of_study) %></dd>
+              </div>
+              <div class="admin-definition-item">
+                <dt>Semester</dt>
+                <dd><%= displayAdminValue(profile.semester) %></dd>
+              </div>
+              <div class="admin-definition-item">
+                <dt>Class</dt>
+                <dd><%= displayAdminValue(profile.class_code) %></dd>
+              </div>
+              <div class="admin-definition-item">
+                <dt>Search visibility</dt>
+                <dd>
+                  <%= profile.is_searchable === undefined || profile.is_searchable === null
+                    ? "Not provided"
+                    : profile.is_searchable
+                      ? "Searchable"
+                      : "Hidden"
+                  %>
+                </dd>
+              </div>
+              <div class="admin-definition-item admin-definition-item--wide">
+                <dt>Bio</dt>
+                <dd><%= displayAdminValue(profile.bio) %></dd>
+              </div>
+              <div class="admin-definition-item admin-definition-item--wide">
+                <dt>Interests</dt>
+                <dd><%= displayAdminValue(profile.interests) %></dd>
+              </div>
+              <div class="admin-definition-item admin-definition-item--wide">
+                <dt>Skills</dt>
+                <dd><%= displayAdminValue(profile.skills) %></dd>
+              </div>
+              <div class="admin-definition-item admin-definition-item--wide">
+                <dt>Looking for</dt>
+                <dd><%= displayAdminValue(profile.looking_for) %></dd>
+              </div>
+            </dl>
+          <% } else { %>
+            <div class="admin-empty-state admin-empty-state--compact">
+              <span class="admin-empty-icon" aria-hidden="true">&#128196;</span>
+              <h3>No profile information</h3>
+              <p>This account has not created a student profile.</p>
+            </div>
+          <% } %>
+        </section>
+      </div>
+
+      <section class="admin-panel" aria-labelledby="accountControlsTitle">
+        <div class="admin-panel-header">
+          <div>
+            <p class="admin-eyebrow">Administrative controls</p>
+            <h2 class="admin-panel-title" id="accountControlsTitle">Role and account access</h2>
+          </div>
+        </div>
+
+        <div class="admin-action-grid">
+          <article class="admin-action-card">
+            <div>
+              <h3>Change role</h3>
+              <p>
+                Assign only a supported RPConnect role. Granting the admin role
+                gives this account access to every administration tool.
+              </p>
+            </div>
+
+            <% if (viewingOwnAccount) { %>
+              <div class="admin-inline-notice admin-inline-notice--warning" role="status">
+                You cannot change the role of your own administrator account.
+              </div>
+            <% } else { %>
+              <form
+                action="/admin/users/<%= encodeURIComponent(String(accountId)) %>/change-role"
+                method="POST"
+                class="admin-action-form"
+              >
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                <div class="form-group admin-form-group">
+                  <label class="form-label" for="newUserRole">New role</label>
+                  <select
+                    class="form-input admin-select"
+                    id="newUserRole"
+                    name="role"
+                    required
+                  >
+                    <% roleOptions.forEach(function (role) { %>
+                      <option value="<%= role %>" <%= account.role === role ? "selected" : "" %>>
+                        <%= role %>
+                      </option>
+                    <% }); %>
+                  </select>
+                </div>
+
+                <label class="admin-confirm-control" for="confirmRoleChange">
+                  <input
+                    id="confirmRoleChange"
+                    type="checkbox"
+                    name="confirmRoleChange"
+                    value="yes"
+                    required
+                  />
+                  <span>I confirm that this account's permissions should change.</span>
+                </label>
+
+                <label class="admin-confirm-control" for="confirmAdminPromotion">
+                  <input
+                    id="confirmAdminPromotion"
+                    type="checkbox"
+                    name="confirmAdminPromotion"
+                    value="yes"
+                  />
+                  <span>
+                    If I selected <strong>admin</strong>, I understand that it
+                    grants full access to every administration tool.
+                  </span>
+                </label>
+
+                <button type="submit" class="btn btn-primary">Update role</button>
+              </form>
+            <% } %>
+          </article>
+
+          <article class="admin-action-card<%= accountStatus === "suspended" ? " admin-action-card--warning" : "" %>">
+            <div>
+              <h3><%= accountStatus === "suspended" ? "Restore account access" : "Suspend account" %></h3>
+              <p>
+                <%= accountStatus === "suspended"
+                  ? "Unsuspending this account allows the user to sign in again."
+                  : "Suspending this account blocks the user from signing in until an administrator restores access."
+                %>
+              </p>
+            </div>
+
+            <% if (!canManageSuspension) { %>
+              <div class="admin-inline-notice" role="status">
+                Account suspension becomes available after the account-status migration is installed.
+              </div>
+            <% } else if (viewingOwnAccount) { %>
+              <div class="admin-inline-notice admin-inline-notice--warning" role="status">
+                You cannot suspend your own administrator account.
+              </div>
+            <% } else if (accountStatus === "suspended") { %>
+              <form
+                action="/admin/users/<%= encodeURIComponent(String(accountId)) %>/unsuspend"
+                method="POST"
+                class="admin-action-form"
+              >
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <input type="hidden" name="confirmUnsuspend" value="yes" />
+                <button type="submit" class="btn btn-primary">Unsuspend user</button>
+              </form>
+            <% } else { %>
+              <form
+                action="/admin/users/<%= encodeURIComponent(String(accountId)) %>/suspend"
+                method="POST"
+                class="admin-action-form"
+              >
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+                <label class="admin-confirm-control" for="confirmSuspend">
+                  <input
+                    id="confirmSuspend"
+                    type="checkbox"
+                    name="confirmSuspend"
+                    value="yes"
+                    required
+                  />
+                  <span>
+                    I confirm that I am suspending
+                    <strong><%= account.username || account.email || "this account" %></strong>.
+                  </span>
+                </label>
+
+                <button type="submit" class="admin-warning-button">Suspend user</button>
+              </form>
+            <% } %>
+          </article>
+        </div>
+      </section>
+
+      <section class="admin-danger-panel" aria-labelledby="resetTwoFactorTitle">
+        <div class="admin-danger-copy">
+          <p class="admin-eyebrow admin-eyebrow--danger">Security action</p>
+          <h2 id="resetTwoFactorTitle">Reset two-factor authentication</h2>
+          <p>
+            This clears only this account's 2FA secret and enabled status.
+            The user must configure an authenticator again on their next login.
+          </p>
+        </div>
+
+        <form
+          action="/admin/users/<%= encodeURIComponent(String(accountId)) %>/reset-2fa"
+          method="POST"
+          class="admin-reset-form"
+        >
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+          <label class="admin-confirm-control" for="confirmReset">
+            <input
+              id="confirmReset"
+              type="checkbox"
+              name="confirmReset"
+              value="yes"
+              required
+              <% if (!accountTwoFactor) { %>disabled<% } %>
+            />
+            <span>
+              I confirm that I am resetting 2FA for
+              <strong><%= account.username || account.email || "this account" %></strong>.
+            </span>
+          </label>
+
+          <button
+            type="submit"
+            class="admin-danger-button"
+            <% if (!accountTwoFactor) { %>disabled<% } %>
+          >
+            <%= accountTwoFactor ? "Reset user 2FA" : "2FA is already reset" %>
+          </button>
+        </form>
+      </section>
+
+      <section class="admin-danger-panel" aria-labelledby="deleteUserTitle">
+        <div class="admin-danger-copy">
+          <p class="admin-eyebrow admin-eyebrow--danger">Permanent action</p>
+          <h2 id="deleteUserTitle">Delete user account</h2>
+          <p>
+            This permanently removes the account and database records that
+            depend on it. This action cannot be undone.
+          </p>
+          <div class="admin-inline-notice admin-inline-notice--warning">
+            <strong>Database cascade warning:</strong>
+            <ul>
+              <li>
+                Every RP Circle owned by this user is deleted with all of its
+                memberships, join requests, posts, and replies, including
+                content created there by other users.
+              </li>
+              <li>
+                Questions created by this user are deleted with every reply
+                attached to them.
+              </li>
+              <li>
+                CCAs created by this user are retained, but their creator is
+                cleared.
+              </li>
+            </ul>
+          </div>
+
+          <% if (impactItems.length > 0) { %>
+            <ul class="admin-impact-list" aria-label="Records affected by deletion">
+              <% impactItems.forEach(function (item) { %>
+                <li>
+                  <strong><%= item.count %></strong>
+                  <%= item.count === 1 ? item.singular : item.plural %>
+                </li>
+              <% }); %>
+            </ul>
+          <% } %>
+        </div>
+
+        <% if (viewingOwnAccount) { %>
+          <div class="admin-inline-notice admin-inline-notice--warning" role="status">
+            You cannot delete your own administrator account.
+          </div>
+        <% } else { %>
+          <form
+            action="/admin/users/<%= encodeURIComponent(String(accountId)) %>/delete"
+            method="POST"
+            class="admin-reset-form"
+          >
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+            <label class="admin-confirm-control" for="confirmDeleteUser">
+              <input
+                id="confirmDeleteUser"
+                type="checkbox"
+                name="confirmDelete"
+                value="yes"
+                required
+              />
+              <span>
+                I understand this permanently deletes
+                <strong><%= account.username || account.email || "this account" %></strong>
+                and the cascaded records described above.
+              </span>
+            </label>
+
+            <button type="submit" class="admin-danger-button">Delete user permanently</button>
+          </form>
+        <% } %>
+      </section>
+
+      <div class="admin-page-footer-action">
+        <a href="/admin/users" class="btn btn-outline">Back to user management</a>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/nav.js"></script>
+</body>
+</html>

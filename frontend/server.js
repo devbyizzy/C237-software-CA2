@@ -1,6 +1,13 @@
 const express = require("express");
 const path = require("path");
 const session = require("express-session");
+const adminRoutes = require("./routes/admin");
+const requireAdmin = require(
+  "./middleware/requireAdmin"
+);
+const requireLogin = require(
+  "./middleware/requireLogin"
+);
 
 const app = express();
 
@@ -82,37 +89,19 @@ const requestBackend = async (
   };
 };
 
-const requireLogin = (
-  req,
-  res,
-  next
+const getAuthenticatedLandingPath = (
+  user
 ) => {
-  if (!req.session.user) {
-    return res.redirect("/login");
-  }
-
-  return next();
+  return user && user.role === "admin"
+    ? "/admin"
+    : "/dashboard";
 };
 
-const requireAdmin = (
-  req,
-  res,
-  next
-) => {
-  if (!req.session.user) {
-    return res.redirect("/login");
-  }
-
-  if (
-    req.session.user.role !== "admin"
-  ) {
-    return res
-      .status(403)
-      .send("Access denied.");
-  }
-
-  return next();
-};
+app.use(
+  "/admin",
+  requireAdmin,
+  adminRoutes
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -122,7 +111,11 @@ const requireAdmin = (
 
 app.get("/", (req, res) => {
   if (req.session.user) {
-    return res.redirect("/dashboard");
+    return res.redirect(
+      getAuthenticatedLandingPath(
+        req.session.user
+      )
+    );
   }
 
   return res.redirect("/login");
@@ -136,7 +129,11 @@ app.get("/", (req, res) => {
 
 app.get("/login", (req, res) => {
   if (req.session.user) {
-    return res.redirect("/dashboard");
+    return res.redirect(
+      getAuthenticatedLandingPath(
+        req.session.user
+      )
+    );
   }
 
   let success = null;
@@ -340,7 +337,9 @@ app.get(
   (req, res) => {
     if (req.session.user) {
       return res.redirect(
-        "/dashboard"
+        getAuthenticatedLandingPath(
+          req.session.user
+        )
       );
     }
 
@@ -597,7 +596,11 @@ app.post(
 
 app.get("/forgot-password", (req, res) => {
   if (req.session.user) {
-    return res.redirect("/dashboard");
+    return res.redirect(
+      getAuthenticatedLandingPath(
+        req.session.user
+      )
+    );
   }
 
   return res.render("auth/forgot-password", {
@@ -692,7 +695,11 @@ app.get(
   "/reset-password",
   async (req, res) => {
     if (req.session.user) {
-      return res.redirect("/dashboard");
+      return res.redirect(
+        getAuthenticatedLandingPath(
+          req.session.user
+        )
+      );
     }
 
     const token =
@@ -771,7 +778,11 @@ app.post(
   "/reset-password",
   async (req, res) => {
     if (req.session.user) {
-      return res.redirect("/dashboard");
+      return res.redirect(
+        getAuthenticatedLandingPath(
+          req.session.user
+        )
+      );
     }
 
     const token =
@@ -902,7 +913,11 @@ app.get(
   "/setup-2fa",
   async (req, res) => {
     if (req.session.user) {
-      return res.redirect("/dashboard");
+      return res.redirect(
+        getAuthenticatedLandingPath(
+          req.session.user
+        )
+      );
     }
 
     if (!req.session.pendingUser) {
@@ -1039,7 +1054,11 @@ app.post(
   "/setup-2fa",
   async (req, res) => {
     if (req.session.user) {
-      return res.redirect("/dashboard");
+      return res.redirect(
+        getAuthenticatedLandingPath(
+          req.session.user
+        )
+      );
     }
 
     if (
@@ -1147,7 +1166,9 @@ app.post(
           }
 
           return res.redirect(
-            "/dashboard"
+            getAuthenticatedLandingPath(
+              req.session.user
+            )
           );
         }
       );
@@ -1185,7 +1206,11 @@ app.get(
   "/verify-2fa",
   (req, res) => {
     if (req.session.user) {
-      return res.redirect("/dashboard");
+      return res.redirect(
+        getAuthenticatedLandingPath(
+          req.session.user
+        )
+      );
     }
 
     if (!req.session.pendingUser) {
@@ -1207,7 +1232,11 @@ app.post(
   "/verify-2fa",
   async (req, res) => {
     if (req.session.user) {
-      return res.redirect("/dashboard");
+      return res.redirect(
+        getAuthenticatedLandingPath(
+          req.session.user
+        )
+      );
     }
 
     if (!req.session.pendingUser) {
@@ -1303,7 +1332,9 @@ app.post(
           }
 
           return res.redirect(
-            "/dashboard"
+            getAuthenticatedLandingPath(
+              req.session.user
+            )
           );
         }
       );

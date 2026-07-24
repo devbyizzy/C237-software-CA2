@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPConnect Admin - CCAs</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-page">
+  <a class="admin-skip-link" href="#adminMain">Skip to CCA management</a>
+
+  <%- include("partials/header", { user: user }) %>
+
+  <%
+    const adminCcas =
+      typeof ccas !== "undefined" && Array.isArray(ccas) ? ccas : [];
+    const activeFilters =
+      typeof filters !== "undefined" && filters && typeof filters === "object"
+        ? filters
+        : {};
+    const safeCsrfToken =
+      typeof csrfToken === "string" ? csrfToken : "";
+    const noticeMessage =
+      typeof notice !== "undefined" && notice && typeof notice === "object"
+        ? notice.message
+        : typeof notice !== "undefined"
+          ? notice
+          : null;
+    const noticeType =
+      typeof notice !== "undefined" &&
+      notice &&
+      typeof notice === "object" &&
+      notice.type === "success"
+        ? "success"
+        : "error";
+
+    function formatAdminDate(value) {
+      if (!value) {
+        return "Not available";
+      }
+
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return "Not available";
+      }
+
+      return new Intl.DateTimeFormat("en-SG", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      }).format(date);
+    }
+
+    function adminDateTime(value) {
+      if (!value) {
+        return "";
+      }
+
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+    }
+
+    function formatAdminTime(value) {
+      if (!value) {
+        return "";
+      }
+
+      const parts = String(value).split(":");
+      if (parts.length < 2) {
+        return String(value);
+      }
+
+      return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
+    }
+  %>
+
+  <div class="layout admin-layout">
+    <%- include("partials/sidebar", {
+      activePage: "ccas",
+      csrfToken: safeCsrfToken
+    }) %>
+
+    <main class="admin-main" id="adminMain">
+      <div class="admin-page-header">
+        <div>
+          <p class="admin-eyebrow">Co-curricular directory</p>
+          <h1 class="admin-page-title">CCA Management</h1>
+          <p class="admin-page-subtitle">
+            Create, update, activate, and retire RPConnect CCA listings.
+          </p>
+        </div>
+
+        <a href="/admin/ccas/new" class="btn btn-primary">Create CCA</a>
+      </div>
+
+      <% if (noticeMessage) { %>
+        <div
+          class="admin-notice admin-notice--<%= noticeType %>"
+          role="<%= noticeType === "success" ? "status" : "alert" %>"
+        >
+          <span class="admin-notice-icon" aria-hidden="true">
+            <%= noticeType === "success" ? "✓" : "!" %>
+          </span>
+          <p><%= noticeMessage %></p>
+        </div>
+      <% } %>
+
+      <section class="admin-panel admin-filter-panel" aria-labelledby="ccaFiltersTitle">
+        <div class="admin-panel-header admin-panel-header--compact">
+          <div>
+            <p class="admin-eyebrow">Find a CCA</p>
+            <h2 class="admin-panel-title" id="ccaFiltersTitle">Search and filter</h2>
+          </div>
+        </div>
+
+        <form
+          action="/admin/ccas"
+          method="GET"
+          class="admin-filter-form admin-filter-form--three"
+        >
+          <div class="form-group admin-form-group">
+            <label class="form-label" for="ccaSearch">Name or description</label>
+            <input
+              class="form-input"
+              id="ccaSearch"
+              name="search"
+              type="search"
+              value="<%= activeFilters.search || "" %>"
+              placeholder="Search CCAs"
+              maxlength="150"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="form-group admin-form-group">
+            <label class="form-label" for="ccaStatusFilter">Status</label>
+            <select
+              class="form-input admin-select"
+              id="ccaStatusFilter"
+              name="status"
+            >
+              <option value="">All statuses</option>
+              <option value="active" <%= activeFilters.status === "active" ? "selected" : "" %>>
+                Active
+              </option>
+              <option value="inactive" <%= activeFilters.status === "inactive" ? "selected" : "" %>>
+                Inactive
+              </option>
+            </select>
+          </div>
+
+          <div class="admin-filter-actions">
+            <button type="submit" class="btn btn-primary">Apply filters</button>
+            <a href="/admin/ccas" class="btn btn-outline">Clear</a>
+          </div>
+        </form>
+      </section>
+
+      <section class="admin-panel" aria-labelledby="ccasTableTitle">
+        <div class="admin-panel-header">
+          <div>
+            <p class="admin-eyebrow">Directory</p>
+            <h2 class="admin-panel-title" id="ccasTableTitle">CCA listings</h2>
+          </div>
+          <p class="admin-results-summary">
+            Showing <strong><%= adminCcas.length %></strong>
+            <%= adminCcas.length === 1 ? "CCA" : "CCAs" %>
+          </p>
+        </div>
+
+        <% if (adminCcas.length > 0) { %>
+          <div
+            class="admin-table-wrap"
+            role="region"
+            aria-labelledby="ccasTableTitle"
+            tabindex="0"
+          >
+            <table class="admin-table admin-ccas-table">
+              <caption class="admin-visually-hidden">
+                CCAs matching the selected filters
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">CCA</th>
+                  <th scope="col">Category</th>
+                  <th scope="col">Schedule</th>
+                  <th scope="col">Location</th>
+                  <th scope="col">Members</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Created</th>
+                  <th scope="col"><span class="admin-visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% adminCcas.forEach(function (cca) { %>
+                  <%
+                    const ccaId =
+                      cca.cca_id !== undefined ? cca.cca_id : cca.ccaId;
+                    const status =
+                      typeof cca.status === "string" &&
+                      cca.status.toLowerCase() === "inactive"
+                        ? "inactive"
+                        : "active";
+                    const memberCount = Number(
+                      cca.member_count !== undefined
+                        ? cca.member_count
+                        : cca.memberCount
+                    );
+                    const startTime =
+                      cca.meeting_start_time !== undefined
+                        ? cca.meeting_start_time
+                        : cca.meetingStartTime;
+                    const endTime =
+                      cca.meeting_end_time !== undefined
+                        ? cca.meeting_end_time
+                        : cca.meetingEndTime;
+                    const createdAt =
+                      cca.created_at !== undefined ? cca.created_at : cca.createdAt;
+                  %>
+                  <tr>
+                    <td>
+                      <span class="admin-user-primary">
+                        <%= cca.cca_name || cca.ccaName || "Unnamed CCA" %>
+                      </span>
+                      <span class="admin-secondary-line">
+                        <span class="admin-id-chip">#<%= ccaId %></span>
+                        <% if (cca.contact_email || cca.contactEmail) { %>
+                          <span class="admin-break-value">
+                            <%= cca.contact_email || cca.contactEmail %>
+                          </span>
+                        <% } %>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="admin-role-badge">
+                        <%= cca.category || "Not assigned" %>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="admin-user-primary">
+                        <%= cca.meeting_day || cca.meetingDay || "Day not set" %>
+                      </span>
+                      <% if (startTime || endTime) { %>
+                        <span class="admin-secondary-line">
+                          <%= formatAdminTime(startTime) || "Not set" %>
+                          <% if (endTime) { %>
+                            – <%= formatAdminTime(endTime) %>
+                          <% } %>
+                        </span>
+                      <% } %>
+                    </td>
+                    <td><%= cca.location || "Not provided" %></td>
+                    <td><%= Number.isFinite(memberCount) ? memberCount : 0 %></td>
+                    <td>
+                      <span class="admin-status-badge admin-status-badge--<%= status %>">
+                        <span class="admin-status-dot" aria-hidden="true"></span>
+                        <%= status === "active" ? "Active" : "Inactive" %>
+                      </span>
+                    </td>
+                    <td>
+                      <time datetime="<%= adminDateTime(createdAt) %>">
+                        <%= formatAdminDate(createdAt) %>
+                      </time>
+                    </td>
+                    <td class="admin-table-action">
+                      <div class="admin-table-actions">
+                        <a
+                          class="btn btn-outline admin-table-button"
+                          href="/admin/ccas/<%= encodeURIComponent(String(ccaId)) %>/edit"
+                          aria-label="Edit <%= cca.cca_name || cca.ccaName || "CCA" %>"
+                        >
+                          Edit
+                        </a>
+
+                        <form
+                          action="/admin/ccas/<%= encodeURIComponent(String(ccaId)) %>/toggle-status"
+                          method="POST"
+                          class="admin-inline-form"
+                        >
+                          <input type="hidden" name="_csrf" value="<%= safeCsrfToken %>" />
+                          <input type="hidden" name="confirmStatusChange" value="yes" />
+                          <button
+                            type="submit"
+                            class="btn btn-outline admin-table-button"
+                            aria-label="<%= status === "active" ? "Deactivate" : "Activate" %> <%= cca.cca_name || cca.ccaName || "CCA" %>"
+                          >
+                            <%= status === "active" ? "Deactivate" : "Activate" %>
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="admin-empty-state">
+            <span class="admin-empty-icon" aria-hidden="true">&#9733;</span>
+            <h3>No matching CCAs</h3>
+            <p>Try clearing the filters, or create the first CCA listing.</p>
+            <div class="admin-empty-actions">
+              <a href="/admin/ccas" class="btn btn-outline">Clear filters</a>
+              <a href="/admin/ccas/new" class="btn btn-primary">Create CCA</a>
+            </div>
+          </div>
+        <% } %>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/nav.js"></script>
+</body>
+</html>

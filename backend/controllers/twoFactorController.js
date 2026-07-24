@@ -2,6 +2,11 @@ const QRCode = require("qrcode");
 const { authenticator } = require("otplib");
 
 const pool = require("../utils/db");
+const {
+  ACCOUNT_STATUS_ACTIVE,
+  accountStatusAllowsAccess,
+  getAccountStatusByUserId,
+} = require("../utils/accountStatus");
 const database = pool.promise();
 
 const normaliseCode = (value) => {
@@ -137,6 +142,24 @@ const setupTwoFactor = async (
 
     const user = users[0];
 
+    const accountStatus =
+      await getAccountStatusByUserId(
+        database,
+        user.user_id
+      );
+
+    if (
+      !accountStatusAllowsAccess(
+        accountStatus
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This account has been suspended. Contact an administrator for assistance.",
+      });
+    }
+
     if (user.two_factor_enabled) {
       return res.status(409).json({
         success: false,
@@ -223,6 +246,24 @@ const enableTwoFactor = async (
       });
     }
 
+    const accountStatus =
+      await getAccountStatusByUserId(
+        database,
+        userId
+      );
+
+    if (
+      !accountStatusAllowsAccess(
+        accountStatus
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This account has been suspended. Contact an administrator for assistance.",
+      });
+    }
+
     const codeIsValid =
       await authenticator.verify({
         token: code,
@@ -237,6 +278,21 @@ const enableTwoFactor = async (
       });
     }
 
+    const statusCondition =
+      accountStatus.available
+        ? "AND account_status = ?"
+        : "";
+    const updateParameters = [
+      secret,
+      userId,
+    ];
+
+    if (accountStatus.available) {
+      updateParameters.push(
+        ACCOUNT_STATUS_ACTIVE
+      );
+    }
+
     const [result] =
       await database.execute(
         `
@@ -246,11 +302,30 @@ const enableTwoFactor = async (
             two_factor_secret = ?
           WHERE user_id = ?
             AND two_factor_enabled = FALSE
+            ${statusCondition}
         `,
-        [secret, userId]
+        updateParameters
       );
 
     if (result.affectedRows !== 1) {
+      const currentAccountStatus =
+        await getAccountStatusByUserId(
+          database,
+          userId
+        );
+
+      if (
+        !accountStatusAllowsAccess(
+          currentAccountStatus
+        )
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "This account has been suspended. Contact an administrator for assistance.",
+        });
+      }
+
       return res.status(409).json({
         success: false,
         message:
@@ -336,6 +411,24 @@ const verifyTwoFactorLogin = async (
     }
 
     const user = users[0];
+
+    const accountStatus =
+      await getAccountStatusByUserId(
+        database,
+        user.user_id
+      );
+
+    if (
+      !accountStatusAllowsAccess(
+        accountStatus
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This account has been suspended. Contact an administrator for assistance.",
+      });
+    }
 
     if (
       !user.two_factor_enabled ||

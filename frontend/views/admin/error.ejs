@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPConnect Admin - <%= title %></title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-page">
+  <a class="admin-skip-link" href="#adminMain">Skip to error message</a>
+
+  <%- include("partials/header", { user: user }) %>
+
+  <%
+    const safeBackHref =
+      typeof backHref === "string" &&
+      backHref.startsWith("/") &&
+      !backHref.startsWith("//")
+        ? backHref
+        : "/admin";
+    const recognisedAdminPages = [
+      ["users", "/admin/users"],
+      ["groups", "/admin/groups"],
+      ["ccas", "/admin/ccas"],
+      ["questions", "/admin/questions"],
+      ["activity", "/admin/activity"]
+    ];
+    const inferredAdminPage = recognisedAdminPages.find(function (entry) {
+      return safeBackHref.startsWith(entry[1]);
+    });
+    const errorActivePage =
+      typeof activePage === "string" &&
+      ["dashboard", "users", "groups", "ccas", "questions", "activity"].includes(activePage)
+        ? activePage
+        : inferredAdminPage
+          ? inferredAdminPage[0]
+          : "dashboard";
+  %>
+
+  <div class="layout admin-layout">
+    <%- include("partials/sidebar", {
+      activePage: errorActivePage,
+      csrfToken: typeof csrfToken === "string" ? csrfToken : ""
+    }) %>
+
+    <main class="admin-main admin-error-main" id="adminMain">
+      <section class="admin-error-card" aria-labelledby="adminErrorTitle">
+        <div class="admin-error-code"><%= statusCode %></div>
+        <p class="admin-eyebrow">Admin request could not be completed</p>
+        <h1 id="adminErrorTitle"><%= title %></h1>
+        <p class="admin-error-message"><%= message %></p>
+        <a href="<%= safeBackHref %>" class="btn btn-primary">Go back</a>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/nav.js"></script>
+</body>
+</html>
