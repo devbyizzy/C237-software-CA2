@@ -1479,6 +1479,10 @@ app.get(
   }
 );
 
+app.get('/interest-groups', requireLogin, (req, res) => {
+  return res.render('interestGroups', { user: req.session.user });
+});
+
 app.get(
   "/groups/:id",
   requireLogin,
