@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPConnect - Post</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="navbar-left">
+      <button class="hamburger" id="hamburgerBtn" aria-label="Toggle menu">☰</button>
+      <a href="/" class="logo">🎓 RPConnect</a>
+    </div>
+    <form class="navbar-search" action="#" method="GET" onsubmit="return false;">
+      <span class="search-icon">🔍</span>
+      <input type="text" name="q" placeholder="Search students, questions, groups..." />
+    </form>
+    <div class="navbar-right">
+      <button class="icon-btn notif-btn" aria-label="Notifications" title="Notifications">🔔</button>
+      <div class="navbar-profile dropdown">
+        <button class="navbar-profile-trigger" id="profileMenuBtn">
+          <div class="avatar avatar-sm" id="navAvatar"></div>
+          <span class="navbar-username" id="navUsername"></span>
+          <span class="caret">▾</span>
+        </button>
+        <div class="dropdown-menu" id="profileMenu">
+          <a href="/profile" class="dropdown-item">🙍 My Profile</a>
+          <a href="#" class="dropdown-item logout-item">🚪 Logout</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <a href="/" class="sidebar-link"><span class="sidebar-icon">🏠</span> Home</a>
+        <a href="/groups" class="sidebar-link"><span class="sidebar-icon">👥</span> Groups</a>
+        <a href="/interest-groups" class="sidebar-link"><span class="sidebar-icon">✨</span> Interest Groups</a>
+        <a href="/forum" class="sidebar-link active"><span class="sidebar-icon">💬</span> Forum</a>
+        <a href="/profile" class="sidebar-link"><span class="sidebar-icon">🙍</span> My Profile</a>
+      </nav>
+    </aside>
+
+    <main class="feed">
+      <a href="/forum" style="font-size:13px; color:var(--text-muted); text-decoration:none;">← Back to Forum</a>
+
+      <div id="questionContainer" style="margin-top:12px;"></div>
+
+      <section class="feed-section">
+        <div class="card">
+          <h2 style="margin-top:0;">Add a Reply</h2>
+          <div id="replyError" class="form-error" style="display:none;"></div>
+          <form id="replyForm">
+            <div class="form-group">
+              <textarea class="form-textarea" id="replyContent" rows="3" required placeholder="Write a reply..."></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Reply</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="feed-section">
+        <h2 style="margin-bottom:10px;">Replies</h2>
+        <div id="repliesList"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    window.CURRENT_USER = <%- JSON.stringify(user || null).replace(/</g, '\\u003c') %>;
+    window.QUESTION_ID = <%- JSON.stringify(questionId) %>;
+  </script>
+  <script src="/js/config.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/forumThread.js"></script>
+</body>
+</html>
