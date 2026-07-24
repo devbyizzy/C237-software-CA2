@@ -65,6 +65,13 @@ app.use('/', createProxyMiddleware({
 app.use((error, req, res, next) => {
   console.error("Backend error:", error);
 
+  if (error && error.name === "SyntaxError" && error.type === "entity.parse.failed") {
+    return res.status(400).json({
+      success: false,
+      message: "The request body is not valid JSON.",
+    });
+  }
+
   res.status(500).json({
     success: false,
     message: "An unexpected server error occurred.",
