@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPConnect Admin - RP Circles</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="admin-page">
+  <a class="admin-skip-link" href="#adminMain">Skip to RP Circle management</a>
+
+  <%- include("partials/header", { user: user }) %>
+
+  <%
+    const adminGroups =
+      typeof groups !== "undefined" && Array.isArray(groups) ? groups : [];
+    const activeFilters =
+      typeof filters !== "undefined" && filters && typeof filters === "object"
+        ? filters
+        : {};
+    const safeCsrfToken =
+      typeof csrfToken === "string" ? csrfToken : "";
+    const noticeMessage =
+      typeof notice !== "undefined" && notice && typeof notice === "object"
+        ? notice.message
+        : typeof notice !== "undefined"
+          ? notice
+          : null;
+    const noticeType =
+      typeof notice !== "undefined" &&
+      notice &&
+      typeof notice === "object" &&
+      notice.type === "success"
+        ? "success"
+        : "error";
+
+    function formatAdminDate(value) {
+      if (!value) {
+        return "Not available";
+      }
+
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return "Not available";
+      }
+
+      return new Intl.DateTimeFormat("en-SG", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(date);
+    }
+
+    function adminDateTime(value) {
+      if (!value) {
+        return "";
+      }
+
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+    }
+  %>
+
+  <div class="layout admin-layout">
+    <%- include("partials/sidebar", {
+      activePage: "groups",
+      csrfToken: safeCsrfToken
+    }) %>
+
+    <main class="admin-main" id="adminMain">
+      <div class="admin-page-header">
+        <div>
+          <p class="admin-eyebrow">Community moderation</p>
+          <h1 class="admin-page-title">RP Circle Management</h1>
+          <p class="admin-page-subtitle">
+            Review student-created groups, their owners, and community size.
+          </p>
+        </div>
+
+        <div class="admin-count-chip">
+          <strong><%= adminGroups.length %></strong>
+          <span><%= adminGroups.length === 1 ? "result" : "results" %></span>
+        </div>
+      </div>
+
+      <% if (noticeMessage) { %>
+        <div
+          class="admin-notice admin-notice--<%= noticeType %>"
+          role="<%= noticeType === "success" ? "status" : "alert" %>"
+        >
+          <span class="admin-notice-icon" aria-hidden="true">
+            <%= noticeType === "success" ? "✓" : "!" %>
+          </span>
+          <p><%= noticeMessage %></p>
+        </div>
+      <% } %>
+
+      <section class="admin-panel admin-filter-panel" aria-labelledby="groupFiltersTitle">
+        <div class="admin-panel-header admin-panel-header--compact">
+          <div>
+            <p class="admin-eyebrow">Find a circle</p>
+            <h2 class="admin-panel-title" id="groupFiltersTitle">Search groups</h2>
+          </div>
+        </div>
+
+        <form
+          action="/admin/groups"
+          method="GET"
+          class="admin-filter-form admin-filter-form--search"
+        >
+          <div class="form-group admin-form-group">
+            <label class="form-label" for="groupSearch">Circle name</label>
+            <input
+              class="form-input"
+              id="groupSearch"
+              name="search"
+              type="search"
+              value="<%= activeFilters.search || "" %>"
+              placeholder="Search by circle name"
+              maxlength="150"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="admin-filter-actions">
+            <button type="submit" class="btn btn-primary">Search</button>
+            <a href="/admin/groups" class="btn btn-outline">Clear</a>
+          </div>
+        </form>
+      </section>
+
+      <section class="admin-panel" aria-labelledby="groupsTableTitle">
+        <div class="admin-panel-header">
+          <div>
+            <p class="admin-eyebrow">Directory</p>
+            <h2 class="admin-panel-title" id="groupsTableTitle">Student-created circles</h2>
+          </div>
+          <p class="admin-results-summary">
+            Showing <strong><%= adminGroups.length %></strong>
+            <%= adminGroups.length === 1 ? "circle" : "circles" %>
+          </p>
+        </div>
+
+        <% if (adminGroups.length > 0) { %>
+          <div
+            class="admin-table-wrap"
+            role="region"
+            aria-labelledby="groupsTableTitle"
+            tabindex="0"
+          >
+            <table class="admin-table admin-groups-table">
+              <caption class="admin-visually-hidden">
+                RP Circles matching the current search
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Circle</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Privacy</th>
+                  <th scope="col">Creator</th>
+                  <th scope="col">Members</th>
+                  <th scope="col">Created</th>
+                  <th scope="col"><span class="admin-visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% adminGroups.forEach(function (group) { %>
+                  <%
+                    const groupId =
+                      group.group_id !== undefined ? group.group_id : group.groupId;
+                    const createdAt =
+                      group.created_at !== undefined ? group.created_at : group.createdAt;
+                    const memberCount = Number(
+                      group.member_count !== undefined
+                        ? group.member_count
+                        : group.memberCount
+                    );
+                  %>
+                  <tr>
+                    <td>
+                      <span class="admin-user-primary">
+                        <%= group.group_name || group.groupName || "Unnamed circle" %>
+                      </span>
+                      <span class="admin-secondary-line">
+                        <span class="admin-id-chip">#<%= groupId %></span>
+                        <% if (group.description) { %>
+                          <span class="admin-clamp-text"><%= group.description %></span>
+                        <% } %>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="admin-role-badge">
+                        <%= group.group_type || group.groupType || "Not assigned" %>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="admin-status-badge admin-status-badge--neutral">
+                        <%= group.privacy === "private" ? "Private" : "Public" %>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="admin-user-primary">
+                        <%= group.creator_name || group.creator_username || "Unknown user" %>
+                      </span>
+                      <% if (group.creator_email) { %>
+                        <span class="admin-secondary-line admin-break-value">
+                          <%= group.creator_email %>
+                        </span>
+                      <% } %>
+                    </td>
+                    <td><%= Number.isFinite(memberCount) ? memberCount : 0 %></td>
+                    <td>
+                      <time datetime="<%= adminDateTime(createdAt) %>">
+                        <%= formatAdminDate(createdAt) %>
+                      </time>
+                    </td>
+                    <td class="admin-table-action">
+                      <a
+                        class="btn btn-outline admin-table-button"
+                        href="/admin/groups/<%= encodeURIComponent(String(groupId)) %>"
+                        aria-label="View <%= group.group_name || group.groupName || "circle" %>"
+                      >
+                        View
+                      </a>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        <% } else { %>
+          <div class="admin-empty-state">
+            <span class="admin-empty-icon" aria-hidden="true">&#9673;</span>
+            <h3>No matching RP Circles</h3>
+            <p>Try a different circle name or clear the search.</p>
+            <a href="/admin/groups" class="btn btn-outline">Clear search</a>
+          </div>
+        <% } %>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/nav.js"></script>
+</body>
+</html>

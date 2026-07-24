@@ -1,5 +1,9 @@
 const bcrypt = require("bcryptjs");
 const pool = require("../utils/db");
+const {
+  accountStatusAllowsAccess,
+  getAccountStatusByUserId,
+} = require("../utils/accountStatus");
 
 const database = pool.promise();
 
@@ -287,6 +291,24 @@ const login = async (req, res) => {
         success: false,
         message:
           "The username, email or password is incorrect.",
+      });
+    }
+
+    const accountStatus =
+      await getAccountStatusByUserId(
+        database,
+        user.user_id
+      );
+
+    if (
+      !accountStatusAllowsAccess(
+        accountStatus
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This account has been suspended. Contact an administrator for assistance.",
       });
     }
 
