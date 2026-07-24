@@ -1360,6 +1360,29 @@ app.get(
 
 /*
 |--------------------------------------------------------------------------
+| Advanced Search Results
+|--------------------------------------------------------------------------
+*/
+
+// ===== ADVANCED SEARCH FEATURE START =====
+// When the user searches from the Home page, they arrive at /search.
+// This route renders the Advanced Search Results page.
+app.get(
+  "/search",
+  requireLogin,
+  (req, res) => {
+    return res.render(
+      "searchResults",
+      {
+        user: req.session.user,
+      }
+    );
+  }
+);
+// ===== ADVANCED SEARCH FEATURE END =====
+
+/*
+|--------------------------------------------------------------------------
 | Profile
 |--------------------------------------------------------------------------
 */

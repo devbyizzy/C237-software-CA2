@@ -11,6 +11,9 @@ const interestGroupRoutes = require('./routes/interestGroups');
 const authRoutes = require("./routes/auth");
 const passwordResetRoutes = require("./routes/passwordReset")
 const twoFactorRoutes = require("./routes/twoFactor");
+// ===== ADVANCED SEARCH FEATURE START =====
+const searchRoutes = require('./routes/search');
+// ===== ADVANCED SEARCH FEATURE END =====
 
 const pool = require('./utils/db');
 
@@ -44,6 +47,9 @@ app.use('/api/group-posts', groupPostRoutes);
 app.use('/api/interest-groups', interestGroupRoutes);
 app.use("/api/auth", passwordResetRoutes);
 app.use("/api/auth/2fa",twoFactorRoutes);
+// ===== ADVANCED SEARCH FEATURE START =====
+app.use('/api', searchRoutes);
+// ===== ADVANCED SEARCH FEATURE END =====
 
 app.get("/", (req, res) => {
   res.json({

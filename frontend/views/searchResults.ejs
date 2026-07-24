@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RPConnect - Search Results</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/search.css" />
+</head>
+<body>
+
+  <!-- ==========================================================
+       NAVBAR — reuses the same structure as the Home page
+       ========================================================== -->
+  <header class="navbar">
+    <div class="navbar-left">
+      <button class="hamburger" id="hamburgerBtn" type="button" aria-label="Toggle menu">
+        ☰
+      </button>
+      <a href="/" class="logo">🎓 RPConnect</a>
+    </div>
+
+    <!-- Search form — keeps the keyword visible when the page loads -->
+    <form class="navbar-search" action="/search" method="GET">
+      <span class="search-icon">🔍</span>
+      <input
+        type="text"
+        name="q"
+        id="searchInput"
+        placeholder="Search groups, CCAs or modules..."
+        value="<%= typeof q !== 'undefined' ? q : '' %>"
+      />
+    </form>
+
+    <div class="navbar-right">
+      <button class="btn btn-primary create-btn" type="button">+ Create</button>
+      <button class="icon-btn notif-btn" type="button" aria-label="Notifications" title="Notifications">
+        🔔
+        <span class="notif-dot" id="notifDot" hidden></span>
+      </button>
+      <div class="navbar-profile dropdown">
+        <button class="navbar-profile-trigger" id="profileMenuBtn" type="button" aria-label="Open profile menu">
+          <div class="avatar avatar-sm" id="navAvatar">
+            <%= user && user.name ? user.name.charAt(0).toUpperCase() : "U" %>
+          </div>
+          <span class="navbar-username" id="navUsername">
+            <%= user && user.username ? user.username : user && user.name ? user.name : "User" %>
+          </span>
+          <span class="caret">▾</span>
+        </button>
+        <div class="dropdown-menu" id="profileMenu">
+          <a href="/profile" class="dropdown-item">🙍 My Profile</a>
+          <a href="/profile" class="dropdown-item">⚙️ Settings</a>
+          <form action="/logout" method="POST" class="logout-form">
+            <button type="submit" class="dropdown-item logout-item">🚪 Logout</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==========================================================
+       MAIN LAYOUT
+       ========================================================== -->
+  <div class="layout">
+    <!-- Sidebar (reuses the same structure as the Home page) -->
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <a href="/" class="sidebar-link">
+          <span class="sidebar-icon">🏠</span> Home
+        </a>
+        <a href="#" class="sidebar-link">
+          <span class="sidebar-icon">❓</span> Questions
+        </a>
+        <a href="/groups" class="sidebar-link">
+          <span class="sidebar-icon">👥</span> Groups
+        </a>
+        <a href="/ccas" class="sidebar-link">
+          <span class="sidebar-icon">🎭</span> CCAs
+        </a>
+        <a href="#" class="sidebar-link">
+          <span class="sidebar-icon">🗓️</span> Timetables
+        </a>
+        <a href="/students" class="sidebar-link">
+          <span class="sidebar-icon">🔎</span> Student Finder
+        </a>
+        <a href="/groups?mine=1" class="sidebar-link">
+          <span class="sidebar-icon">📌</span> My Groups
+        </a>
+        <a href="/profile" class="sidebar-link">
+          <span class="sidebar-icon">🙍</span> My Profile
+        </a>
+      </nav>
+    </aside>
+
+    <!-- ==========================================================
+         MAIN CONTENT — ADVANCED SEARCH RESULTS
+         ========================================================== -->
+    <main class="feed search-page">
+
+      <!-- Search page title -->
+      <h1 class="feed-title">🔍 Advanced Search</h1>
+      <p class="search-subtitle">Search across interest groups, CCAs and modules.</p>
+
+      <!-- ==========================================================
+           FILTER CONTROLS
+           ========================================================== -->
+      <section class="feed-section">
+        <div class="card search-filters-card">
+          <form id="searchFilterForm" class="search-filters-form" action="/search" method="GET">
+            <!-- Hidden input to preserve the keyword -->
+            <input type="hidden" name="q" id="filterKeywordInput" value="" />
+
+            <!-- Result type tabs -->
+            <div class="search-tabs" id="searchTabs">
+              <button type="button" class="search-tab" data-type="all" data-count="0">All</button>
+              <button type="button" class="search-tab" data-type="groups" data-count="0">Groups</button>
+              <button type="button" class="search-tab" data-type="ccas" data-count="0">CCAs</button>
+              <button type="button" class="search-tab" data-type="modules" data-count="0">Modules</button>
+            </div>
+
+            <!-- Filter row -->
+            <div class="search-filters-row">
+              <div class="form-group search-filter-item">
+                <label class="form-label" for="filterCategory">Category</label>
+                <select class="form-input" id="filterCategory" name="category">
+                  <option value="">All categories</option>
+                  <option value="Technology">Technology</option>
+                  <option value="Design">Design</option>
+                  <option value="Student Life">Student Life</option>
+                  <option value="Modules">Modules</option>
+                  <option value="Food">Food</option>
+                  <option value="Sports">Sports</option>
+                  <option value="Arts">Arts</option>
+                </select>
+              </div>
+
+              <div class="form-group search-filter-item">
+                <label class="form-label" for="filterDiploma">Diploma</label>
+                <input class="form-input" type="text" id="filterDiploma" name="diploma" placeholder="e.g. Information Technology" />
+              </div>
+
+              <div class="form-group search-filter-item">
+                <label class="form-label" for="filterSort">Sort By</label>
+                <select class="form-input" id="filterSort" name="sort">
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="az">A to Z</option>
+                  <option value="za">Z to A</option>
+                </select>
+              </div>
+
+              <div class="search-filter-actions">
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                <button type="button" id="clearFiltersBtn" class="btn btn-outline">Clear Filters</button>
+              </div>
+            </div>
+          </form>
+
+          <!-- Active filter chips will be shown here -->
+          <div id="activeFilterChips" class="active-filter-chips"></div>
+        </div>
+      </section>
+
+      <!-- ==========================================================
+           RESULTS AREA
+           ========================================================== -->
+      <section class="feed-section">
+        <!-- Result count -->
+        <div id="resultsHeader" class="results-header">
+          <p class="results-count" id="resultsCount"></p>
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="searchLoading" class="search-loading" style="display:none;">
+          <p>Searching...</p>
+        </div>
+
+        <!-- Results grid -->
+        <div id="searchResults" class="search-results-list"></div>
+
+        <!-- No results message -->
+        <div id="noResults" class="no-results" style="display:none;">
+          <div class="card no-results-card">
+            <p class="no-results-icon">🔍</p>
+            <h3>No results found</h3>
+            <p id="noResultsMessage">Try using a different keyword or removing some filters.</p>
+            <button type="button" id="noResultsClearBtn" class="btn btn-outline">Clear Filters</button>
+          </div>
+        </div>
+
+        <!-- Empty search message -->
+        <div id="emptySearch" class="no-results" style="display:none;">
+          <div class="card no-results-card">
+            <p class="no-results-icon">🔍</p>
+            <h3>Enter a search keyword</h3>
+            <p>Type a keyword above to search groups, CCAs or modules.</p>
+          </div>
+        </div>
+
+        <!-- ==========================================================
+             PAGINATION
+             ========================================================== -->
+        <div id="pagination" class="search-pagination" style="display:none;">
+          <button type="button" id="prevPageBtn" class="btn btn-outline pagination-btn" disabled>← Previous</button>
+          <div id="pageNumbers" class="page-numbers"></div>
+          <button type="button" id="nextPageBtn" class="btn btn-outline pagination-btn">Next →</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Right panel (kept minimal on search page) -->
+    <aside class="right-panel">
+      <section class="panel-section">
+        <h2>💡 Search Tips</h2>
+        <div class="mini-card" style="border:none; padding:0;">
+          <p class="mini-meta" style="font-size:13px;">
+            Use keywords to search across interest groups, CCAs and modules.
+          </p>
+        </div>
+        <div class="mini-card" style="border:none; padding:0;">
+          <p class="mini-meta" style="font-size:13px;">
+            Use the tabs to focus on one content type.
+          </p>
+        </div>
+        <div class="mini-card" style="border:none; padding:0;">
+          <p class="mini-meta" style="font-size:13px;">
+            Apply filters to narrow your results.
+          </p>
+        </div>
+        <div class="mini-card" style="border:none; padding:0;">
+          <p class="mini-meta" style="font-size:13px;">
+            Clear Filters resets everything except your keyword.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h2>🔗 Quick Links</h2>
+        <div class="mini-card" style="border:none; padding:0;">
+          <a href="/groups" style="color:var(--accent); font-size:13px; font-weight:600;">👥 Browse Groups</a>
+        </div>
+        <div class="mini-card" style="border:none; padding:0;">
+          <a href="/ccas" style="color:var(--accent); font-size:13px; font-weight:600;">🎭 Browse CCAs</a>
+        </div>
+        <div class="mini-card" style="border:none; padding:0;">
+          <a href="/students" style="color:var(--accent); font-size:13px; font-weight:600;">🔎 Student Finder</a>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <!-- Pass the user session to JavaScript -->
+  <script>
+    window.CURRENT_USER = <%- JSON.stringify(user || null).replace(/</g, '\\u003c') %>;
+  </script>
+  <script src="/js/config.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/search.js"></script>
+</body>
+</html>
+
