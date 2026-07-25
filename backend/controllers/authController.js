@@ -6,6 +6,8 @@ const {
 } = require("../utils/accountStatus");
 
 const database = pool.promise();
+const elapsedMilliseconds = (startedAt) =>
+  Number(process.hrtime.bigint() - startedAt) / 1e6;
 
 const RP_EMAIL_PATTERN =
   /^[0-9]{8}@myrp\.edu\.sg$/;
@@ -231,6 +233,13 @@ const register = async (req, res) => {
 */
 
 const login = async (req, res) => {
+  const loginStartedAt = process.hrtime.bigint();
+  res.once("finish", () => {
+    console.info(
+      `[timing] POST /api/auth/login total: ${elapsedMilliseconds(loginStartedAt).toFixed(1)} ms`
+    );
+  });
+
   try {
     const loginId = normaliseText(
       req.body.loginId
@@ -249,6 +258,8 @@ const login = async (req, res) => {
       });
     }
 
+    const userQueryStartedAt =
+      process.hrtime.bigint();
     const [users] =
       await database.execute(
         `
@@ -261,7 +272,8 @@ const login = async (req, res) => {
             role,
             created_at,
             two_factor_enabled,
-            two_factor_secret
+            two_factor_secret,
+            account_status
           FROM users
           WHERE LOWER(username) = ?
              OR LOWER(email) = ?
@@ -269,6 +281,9 @@ const login = async (req, res) => {
         `,
         [loginId, loginId]
       );
+    console.info(
+      `[timing] User database query: ${elapsedMilliseconds(userQueryStartedAt).toFixed(1)} ms`
+    );
 
     if (users.length === 0) {
       return res.status(401).json({
@@ -280,11 +295,16 @@ const login = async (req, res) => {
 
     const user = users[0];
 
+    const passwordComparisonStartedAt =
+      process.hrtime.bigint();
     const passwordMatches =
       await bcrypt.compare(
         password,
         user.password_hash
       );
+    console.info(
+      `[timing] Password comparison: ${elapsedMilliseconds(passwordComparisonStartedAt).toFixed(1)} ms`
+    );
 
     if (!passwordMatches) {
       return res.status(401).json({
@@ -294,11 +314,16 @@ const login = async (req, res) => {
       });
     }
 
-    const accountStatus =
-      await getAccountStatusByUserId(
-        database,
-        user.user_id
-      );
+    const accountStatus = {
+      available: true,
+      status:
+        typeof user.account_status ===
+        "string"
+          ? user.account_status
+              .trim()
+              .toLowerCase()
+          : null,
+    };
 
     if (
       !accountStatusAllowsAccess(

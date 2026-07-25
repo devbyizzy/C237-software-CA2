@@ -15,6 +15,7 @@ function timeAgo(dateStr) {
 }
 
 exports.getDashboard = (req, res) => {
+  const dashboardStartedAt = process.hrtime.bigint();
   const currentProfile = getProfileByUserId(CURRENT_USER_ID);
   const currentUser = users.find(u => u.user_id === CURRENT_USER_ID);
 
@@ -55,6 +56,14 @@ exports.getDashboard = (req, res) => {
 
   // Demo notification count for the navbar bell
   const notifCount = 3;
+
+  res.once('finish', () => {
+    const elapsedMs =
+      Number(process.hrtime.bigint() - dashboardStartedAt) / 1e6;
+    console.info(
+      `[timing] Dashboard API total (database queries: 0): ${elapsedMs.toFixed(1)} ms`
+    );
+  });
 
   res.json({
     activePage: 'home',

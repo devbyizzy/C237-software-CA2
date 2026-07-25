@@ -9,6 +9,8 @@ const {
 );
 
 const SESSION_COOKIE_NAME = "connect.sid";
+const elapsedMilliseconds = (startedAt) =>
+  Number(process.hrtime.bigint() - startedAt) / 1e6;
 
 const getSessionUserId = (sessionUser) => {
   if (!sessionUser) {
@@ -136,11 +138,16 @@ const createRequireLogin = ({
     let accountStatus;
 
     try {
+      const dashboardQueryStartedAt =
+        process.hrtime.bigint();
       accountStatus =
         await loadAccountStatus(
           database,
           userId
         );
+      console.info(
+        `[timing] Dashboard database query: ${elapsedMilliseconds(dashboardQueryStartedAt).toFixed(1)} ms`
+      );
     } catch (error) {
       logger.error(
         "Session account lookup error:",
