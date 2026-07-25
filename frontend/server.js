@@ -14,6 +14,8 @@ const app = express();
 const PORT = 5173;
 const API_URL =
   process.env.API_URL || "http://localhost:3000";
+const elapsedMilliseconds = (startedAt) =>
+  Number(process.hrtime.bigint() - startedAt) / 1e6;
 
 app.set("view engine", "ejs");
 
@@ -177,6 +179,14 @@ app.get("/login", (req, res) => {
 app.post(
   "/login",
   async (req, res) => {
+    const loginStartedAt =
+      process.hrtime.bigint();
+    res.once("finish", () => {
+      console.info(
+        `[timing] POST /login total: ${elapsedMilliseconds(loginStartedAt).toFixed(1)} ms`
+      );
+    });
+
     const loginId =
       typeof req.body.loginId ===
       "string"
@@ -240,8 +250,13 @@ if (result.data.requiresTwoFactorSetup) {
   req.session.pendingUser =
     result.data.user;
 
+  const pendingSessionSaveStartedAt =
+    process.hrtime.bigint();
   return req.session.save(
     (error) => {
+      console.info(
+        `[timing] Pending session save before TOTP: ${elapsedMilliseconds(pendingSessionSaveStartedAt).toFixed(1)} ms`
+      );
       if (error) {
         console.error(
           "Session save error:",
@@ -277,8 +292,13 @@ if (result.data.requiresTwoFactor) {
   req.session.pendingUser =
     result.data.user;
 
+  const pendingSessionSaveStartedAt =
+    process.hrtime.bigint();
   return req.session.save(
     (error) => {
+      console.info(
+        `[timing] Pending session save before TOTP: ${elapsedMilliseconds(pendingSessionSaveStartedAt).toFixed(1)} ms`
+      );
       if (error) {
         console.error(
           "Session save error:",
@@ -1220,6 +1240,14 @@ app.post(
 app.get(
   "/verify-2fa",
   (req, res) => {
+    const pageStartedAt =
+      process.hrtime.bigint();
+    res.once("finish", () => {
+      console.info(
+        `[timing] TOTP page loading: ${elapsedMilliseconds(pageStartedAt).toFixed(1)} ms`
+      );
+    });
+
     if (req.session.user) {
       return res.redirect(
         getAuthenticatedLandingPath(
@@ -1325,8 +1353,13 @@ app.post(
       delete req.session
         .pendingTwoFactorQrCode;
 
+      const finalSessionSaveStartedAt =
+        process.hrtime.bigint();
       return req.session.save(
         (error) => {
+          console.info(
+            `[timing] Final session save: ${elapsedMilliseconds(finalSessionSaveStartedAt).toFixed(1)} ms`
+          );
           if (error) {
             console.error(
               "2FA verification session error:",
@@ -1346,11 +1379,14 @@ app.post(
               );
           }
 
-          return res.redirect(
+          const dashboardPath =
             getAuthenticatedLandingPath(
               req.session.user
-            )
+            );
+          console.info(
+            `[timing] Dashboard redirect: ${elapsedMilliseconds(finalSessionSaveStartedAt).toFixed(1)} ms`
           );
+          return res.redirect(dashboardPath);
         }
       );
     } catch (error) {
@@ -1398,6 +1434,13 @@ app.get(
   "/dashboard",
   requireLogin,
   (req, res) => {
+    const dashboardStartedAt =
+      process.hrtime.bigint();
+    res.once("finish", () => {
+      console.info(
+        `[timing] Dashboard render: ${elapsedMilliseconds(dashboardStartedAt).toFixed(1)} ms`
+      );
+    });
     return res.render("index", {
       user: req.session.user,
     });
