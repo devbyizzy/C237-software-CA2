@@ -88,7 +88,9 @@ exports.getProfileById = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   const userId = parseInt(req.params.id, 10);
   if (Number.isNaN(userId)) return res.status(400).json({ error: 'Invalid user id' });
-  const { bio, interests, display_name } = req.body || {};
+
+  const { bio, interests, display_name, diploma, class_code, year_of_study } = req.body || {};
+
   if (bio !== undefined && (typeof bio !== 'string' || bio.length > 500)) {
     return res.status(400).json({ error: 'Bio must be a string up to 500 characters' });
   }
@@ -98,23 +100,56 @@ exports.updateProfile = async (req, res) => {
   if (display_name !== undefined && (typeof display_name !== 'string' || !display_name.trim())) {
     return res.status(400).json({ error: 'Display name cannot be empty' });
   }
+  if (diploma !== undefined && typeof diploma !== 'string') {
+    return res.status(400).json({ error: 'Diploma must be a string' });
+  }
+  if (diploma !== undefined && diploma.length > 150) {
+    return res.status(400).json({ error: 'Diploma must be under 150 characters' });
+  }
+  if (class_code !== undefined && typeof class_code !== 'string') {
+    return res.status(400).json({ error: 'Class code must be a string' });
+  }
+  if (class_code !== undefined && class_code.length > 30) {
+    return res.status(400).json({ error: 'Class code must be under 30 characters' });
+  }
+
+  let normalisedYear;
+  if (year_of_study === undefined) {
+    normalisedYear = undefined;
+  } else if (year_of_study === null || year_of_study === '') {
+    normalisedYear = null;
+  } else {
+    normalisedYear = parseInt(year_of_study, 10);
+    if (Number.isNaN(normalisedYear) || normalisedYear < 1 || normalisedYear > 6) {
+      return res.status(400).json({ error: 'Year of study must be a number between 1 and 6' });
+    }
+  }
+
   try {
     const existingUser = await fetchUserWithProfile(userId);
     if (!existingUser) return res.status(404).json({ error: 'Profile not found' });
+
     await database.execute(
-      `INSERT INTO profiles (user_id, display_name, bio, interests)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO profiles (user_id, display_name, bio, interests, diploma, class_code, year_of_study)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
-         display_name = COALESCE(VALUES(display_name), display_name),
-         bio = COALESCE(VALUES(bio), bio),
-         interests = COALESCE(VALUES(interests), interests)`,
+         display_name  = COALESCE(VALUES(display_name), display_name),
+         bio           = COALESCE(VALUES(bio), bio),
+         interests     = COALESCE(VALUES(interests), interests),
+         diploma       = COALESCE(VALUES(diploma), diploma),
+         class_code    = COALESCE(VALUES(class_code), class_code),
+         year_of_study = COALESCE(VALUES(year_of_study), year_of_study)`,
       [
         userId,
         display_name !== undefined ? display_name.trim() : null,
         bio !== undefined ? bio.trim() : null,
-        interests !== undefined ? interests.trim() : null
+        interests !== undefined ? interests.trim() : null,
+        diploma !== undefined ? diploma.trim() : null,
+        class_code !== undefined ? class_code.trim() : null,
+        normalisedYear !== undefined ? normalisedYear : null
       ]
     );
+
     const payload = await buildProfilePayload(userId, userId);
     res.json(payload);
   } catch (error) {
