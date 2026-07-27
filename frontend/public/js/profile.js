@@ -111,6 +111,10 @@ function renderProfileView(root, data) {
 }
 
 function renderProfileEditForm(root, data) {
+  const yearOptions = [1, 2, 3, 4, 5, 6]
+    .map(y => `<option value="${y}"${data.year_of_study === y ? ' selected' : ''}>Year ${y}</option>`)
+    .join('');
+
   root.innerHTML = `
     <section class="feed-section">
       <div class="card">
@@ -130,6 +134,21 @@ function renderProfileEditForm(root, data) {
             <label class="form-label" for="interestsInput">Interests</label>
             <input class="form-input" type="text" id="interestsInput" maxlength="300" value="${escapeAttr(data.interests || '')}" />
             <span class="form-hint">Comma-separated, e.g. "Web Development, Gaming, AI"</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="diplomaInput">Diploma</label>
+            <input class="form-input" type="text" id="diplomaInput" maxlength="150" value="${escapeAttr(data.diploma || '')}" placeholder="e.g. Diploma in Information Technology" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="classCodeInput">Class</label>
+            <input class="form-input" type="text" id="classCodeInput" maxlength="30" value="${escapeAttr(data.class_code || '')}" placeholder="e.g. IT-01" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="yearOfStudyInput">Year of study</label>
+            <select class="form-input" id="yearOfStudyInput">
+              <option value="">Not set</option>
+              ${yearOptions}
+            </select>
           </div>
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">Save Changes</button>
@@ -152,7 +171,10 @@ function renderProfileEditForm(root, data) {
     const payload = {
       display_name: document.getElementById('displayNameInput').value,
       bio: document.getElementById('bioInput').value,
-      interests: document.getElementById('interestsInput').value
+      interests: document.getElementById('interestsInput').value,
+      diploma: document.getElementById('diplomaInput').value,
+      class_code: document.getElementById('classCodeInput').value,
+      year_of_study: document.getElementById('yearOfStudyInput').value
     };
 
     try {
